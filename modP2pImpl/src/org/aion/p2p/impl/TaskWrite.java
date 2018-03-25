@@ -33,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author chris
@@ -46,14 +47,8 @@ public class TaskWrite implements Runnable {
     private Msg msg;
     private ChannelBuffer channelBuffer;
 
-    TaskWrite(
-            final ExecutorService _workers,
-            boolean _showLog,
-            String _nodeShortId,
-            final SocketChannel _sc,
-            final Msg _msg,
-            final ChannelBuffer _cb
-    ) {
+    TaskWrite(final ExecutorService _workers, boolean _showLog, String _nodeShortId, final SocketChannel _sc,
+            final Msg _msg, final ChannelBuffer _cb) {
         this.workers = _workers;
         this.showLog = _showLog;
         this.nodeShortId = _nodeShortId;
@@ -66,52 +61,46 @@ public class TaskWrite implements Runnable {
     public void run() {
         boolean closed = false;
 
-        if (this.channelBuffer.onWrite.compareAndSet(false, true)) {
-            /*
-             * @warning header set len (body len) before header encode
-             */
-            byte[] bodyBytes = msg.encode();
-            int bodyLen = bodyBytes == null ? 0 : bodyBytes.length;
-            Header h = msg.getHeader();
-            h.setLen(bodyLen);
-            byte[] headerBytes = h.encode();
+        /*
+         * @warning header set len (body len) before header encode
+         */
+        byte[] bodyBytes = msg.encode();
+        int bodyLen = bodyBytes == null ? 0 : bodyBytes.length;
+        Header h = msg.getHeader();
+        h.setLen(bodyLen);
+        byte[] headerBytes = h.encode();
 
-            // print route
-            // System.out.println("write " + h.getVer() + "-" + h.getCtrl() + "-" + h.getAction());
-            ByteBuffer buf = ByteBuffer.allocate(headerBytes.length + bodyLen);
-            buf.put(headerBytes);
-            if (bodyBytes != null)
-                buf.put(bodyBytes);
-            buf.flip();
+        // print route
+        // System.out.println("write " + h.getVer() + "-" + h.getCtrl() +
+        // "-" + h.getAction());
+        ByteBuffer buf = ByteBuffer.allocate(headerBytes.length + bodyLen);
+        buf.put(headerBytes);
+        if (bodyBytes != null)
+            buf.put(bodyBytes);
+        buf.flip();
 
-            try {
-                while (buf.hasRemaining()) {
-                    sc.write(buf);
-                }
-            } catch (ClosedChannelException ex1) {
-                if (showLog) {
-                    System.out.println("<p2p closed-channel-exception node=" + this.nodeShortId + ">");
-                }
-                closed = true;
-            } catch (IOException ex2) {
-                if (showLog) {
-                    System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">");
-                }
-            } finally {
-                this.channelBuffer.onWrite.set(false);
-                if (!closed) {
-                    Msg msg = this.channelBuffer.messages.poll();
-                    if (msg != null) {
-                        //System.out.println("write " + h.getCtrl() + "-" + h.getAction());
-                        workers.submit(new TaskWrite(workers, showLog, nodeShortId, sc, msg, channelBuffer));
-                    }
-                } else {
-                    this.channelBuffer.messages.clear();
-                }
+        try {
+            channelBuffer.lock.tryLock(10, TimeUnit.MILLISECONDS);
+
+            while (buf.hasRemaining()) {
+                sc.write(buf);
             }
-        } else {
-            // message may get dropped here when the message queue is full.
-            this.channelBuffer.messages.offer(msg);
+        } catch (ClosedChannelException ex1) {
+            if (showLog) {
+                System.out.println("<p2p closed-channel-exception node=" + this.nodeShortId + ">");
+            }
+            closed = true;
+        } catch (IOException ex2) {
+            if (showLog) {
+                System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">");
+            }
+        } catch (InterruptedException ex2) {
+            if (showLog) {
+                System.out.println("<p2p write-msg-interrupted-exception node=" + this.nodeShortId + ">");
+            }
+        } finally {
+            channelBuffer.lock.unlock();
         }
     }
+
 }

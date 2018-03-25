@@ -31,6 +31,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  *
@@ -49,19 +51,14 @@ class ChannelBuffer {
 
     byte[] body = null;
 
-    /**
-     * write flag
-     */
-    public AtomicBoolean onWrite = new AtomicBoolean(false);
+    Lock lock = new ReentrantLock();
 
-    public BlockingQueue<Msg> messages = new ArrayBlockingQueue<>(128);
-
-    void refreshHeader(){
+    void refreshHeader() {
         headerBuf.clear();
         header = null;
     }
 
-    void refreshBody(){
+    void refreshBody() {
         bodyBuf = null;
         body = null;
     }
@@ -69,7 +66,7 @@ class ChannelBuffer {
     /**
      * @return boolean
      */
-    boolean isHeaderCompleted(){
+    boolean isHeaderCompleted() {
         return header != null;
     }
 
