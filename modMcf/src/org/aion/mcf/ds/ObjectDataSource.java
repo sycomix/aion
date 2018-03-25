@@ -86,6 +86,14 @@ public class ObjectDataSource<V> implements Flushable {
         Optional<byte[]> val = src.get(key);
         return val.map(serializer::deserialize).orElse(null);
     }
+    
+    public V getWithoutLock(byte[] key) {
+
+        // Fetch the results from cache or database. Return null if doesn't
+        // exist.
+        Optional<byte[]> val = src.get(key);
+        return val.map(serializer::deserialize).orElse(null);
+    }
 
     /**
      * Returns the underlying cache source.

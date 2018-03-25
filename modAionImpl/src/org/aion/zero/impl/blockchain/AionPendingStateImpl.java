@@ -202,8 +202,10 @@ public class AionPendingStateImpl
      * TODO: when we removed libNc, timers were not introduced yet, we must
      * rework the model that libAion uses to work with timers
      */
+    
+    // don't sync here as it just call another synced method.
     @Override
-    public synchronized List<AionTransaction> addPendingTransaction(AionTransaction tx) {
+    public List<AionTransaction> addPendingTransaction(AionTransaction tx) {
         return addPendingTransactions(Collections.singletonList(tx));
     }
 
@@ -592,9 +594,9 @@ public class AionPendingStateImpl
         }
 
         TransactionExecutor executor = new TransactionExecutor(tx, best, pendingState);
-        if (inPool) {
-            executor.setBypassNonce(true);
-        }
+//        if (inPool) {
+//            executor.setBypassNonce(true);
+//        }
         return executor.execute();
     }
 

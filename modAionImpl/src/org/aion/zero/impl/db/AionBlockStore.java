@@ -293,7 +293,8 @@ public class AionBlockStore extends AbstractPowBlockstore<AionBlock, A0BlockHead
 
     private List<AionBlock> getListBlocksEndWithInner(byte[] hash, long qty) {
 
-        AionBlock block = this.blocks.get(hash);
+        //AionBlock block = this.blocks.get(hash);
+        AionBlock block = this.blocks.getWithoutLock(hash);
 
         if (block == null) {
             return new ArrayList<>();

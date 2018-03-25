@@ -107,14 +107,14 @@ public class AionBlockchainImpl implements IAionBlockchain {
     private AionBlock bestBlock;
 
     /**
-     * This version of the bestBlock is only used for external reference
-     * (ex. through {@link #getBestBlock()}), this is done because {@link #bestBlock}
-     * can slip into temporarily inconsistent states while forking, and we
-     * don't want to expose that information to external actors.
+     * This version of the bestBlock is only used for external reference (ex.
+     * through {@link #getBestBlock()}), this is done because {@link #bestBlock}
+     * can slip into temporarily inconsistent states while forking, and we don't
+     * want to expose that information to external actors.
      *
      * However we would still like to publish a bestBlock without locking,
-     * therefore we introduce a volatile block that is only published when
-     * all forking/appending behaviour is completed.
+     * therefore we introduce a volatile block that is only published when all
+     * forking/appending behaviour is completed.
      */
     private volatile AionBlock pubBestBlock;
 
@@ -124,7 +124,6 @@ public class AionBlockchainImpl implements IAionBlockchain {
     private DependentBlockHeaderRule<A0BlockHeader> parentHeaderValidator;
     private BlockHeaderValidator<A0BlockHeader> blockHeaderValidator;
     private AtomicReference<BlockIdentifier> bestKnownBlock = new AtomicReference<BlockIdentifier>();
-
 
     private boolean fork = false;
 
@@ -251,8 +250,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
     /**
      * Referenced only by external
      *
-     * Note: If you are making changes to this method and want to use
-     * it to track internal state, use {@link #bestBlock} instead
+     * Note: If you are making changes to this method and want to use it to
+     * track internal state, use {@link #bestBlock} instead
      *
      * @return {@code bestAionBlock}
      * @see #pubBestBlock
@@ -265,9 +264,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
     /**
      * Referenced only by external
      *
-     * Note: If you are making changes to this method and want to use
-     * it to track internal state, opt for {@link #getSizeInternal()}
-     * instead.
+     * Note: If you are making changes to this method and want to use it to
+     * track internal state, opt for {@link #getSizeInternal()} instead.
      *
      * @return {@code positive long} representing the current size
      * @see #pubBestBlock
@@ -290,7 +288,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
     }
 
     @Override
-    /* NOTE: only returns receipts from the main chain
+    /*
+     * NOTE: only returns receipts from the main chain
      */
     public AionTxInfo getTransactionInfo(byte[] hash) {
 
@@ -307,10 +306,12 @@ public class AionBlockchainImpl implements IAionBlockchain {
             // pick up the receipt from the block on the main chain
             for (AionTxInfo info : infos) {
                 AionBlock block = getBlockStore().getBlockByHash(info.getBlockHash());
-                if (block == null) continue;
+                if (block == null)
+                    continue;
 
                 AionBlock mainBlock = getBlockStore().getChainBlockByNumber(block.getNumber());
-                if (mainBlock == null) continue;
+                if (mainBlock == null)
+                    continue;
 
                 if (FastByteComparisons.equal(info.getBlockHash(), mainBlock.getHash())) {
                     txInfo = info;
@@ -429,10 +430,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
         if (isMoreThan(this.totalDifficulty, savedState.savedTD)) {
 
             if (LOG.isInfoEnabled())
-                LOG.info("branching: from = {}/{}, to = {}/{}",
-                        savedState.savedBest.getNumber(),
-                        Hex.toHexString(savedState.savedBest.getHash()),
-                        block.getNumber(),
+                LOG.info("branching: from = {}/{}, to = {}/{}", savedState.savedBest.getNumber(),
+                        Hex.toHexString(savedState.savedBest.getHash()), block.getNumber(),
                         Hex.toHexString(block.getHash()));
             // main branch become this branch
             // cause we proved that total difficulty
@@ -457,7 +456,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
     public synchronized ImportResult tryToConnect(final AionBlock block) {
         long currentTimestamp = System.currentTimeMillis() / THOUSAND_MS;
-        if (block.getTimestamp() > (currentTimestamp + this.chainConfiguration.getConstants().getClockDriftBufferTime()))
+        if (block
+                .getTimestamp() > (currentTimestamp + this.chainConfiguration.getConstants().getClockDriftBufferTime()))
             return INVALID_BLOCK;
 
         if (LOG.isDebugEnabled()) {
@@ -522,7 +522,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
         return ret;
     }
 
-    public synchronized AionBlock createNewBlock(AionBlock parent, List<AionTransaction> txs, boolean waitUntilBlockTime) {
+    public synchronized AionBlock createNewBlock(AionBlock parent, List<AionTransaction> txs,
+            boolean waitUntilBlockTime) {
         long time = System.currentTimeMillis() / THOUSAND_MS;
 
         if (parent.getTimestamp() >= time) {
@@ -1275,8 +1276,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
             LOG.info("Rebuild FAILED. Reverting to previous block.");
             RecoveryUtils.Status status = RecoveryUtils.revertTo(this, blockNumber - 1);
 
-            return (status == RecoveryUtils.Status.SUCCESS) && repo
-                    .isValidRoot(repo.getBlockStore().getChainBlockByNumber(blockNumber - 1).getStateRoot());
+            return (status == RecoveryUtils.Status.SUCCESS)
+                    && repo.isValidRoot(repo.getBlockStore().getChainBlockByNumber(blockNumber - 1).getStateRoot());
         }
     }
 
