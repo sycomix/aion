@@ -105,12 +105,16 @@ public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockH
     }
 
     public synchronized void delete(byte[] key) {
-        if (!enabled) { return; }
+        if (!enabled) {
+            return;
+        }
         currentUpdates.deletedKeys.add(new ByteArrayWrapper(key));
         // delete is delayed
     }
 
-    public synchronized void updateBatch(Map<byte[], byte[]> rows) {
+    // no thread safe. caller attention!
+
+    public void updateBatch(Map<byte[], byte[]> rows) {
         Map<byte[], byte[]> insertsOnly = new HashMap<>();
         for (Map.Entry<byte[], byte[]> entry : rows.entrySet()) {
             ByteArrayWrapper keyW = new ByteArrayWrapper(entry.getKey());
@@ -129,7 +133,7 @@ public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockH
         src.putBatch(insertsOnly);
     }
 
-    public synchronized void updateBatch(Map<ByteArrayWrapper, byte[]> rows, boolean erasure) {
+    public void updateBatch(Map<ByteArrayWrapper, byte[]> rows, boolean erasure) {
         throw new UnsupportedOperationException();
     }
 
@@ -152,14 +156,18 @@ public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockH
     }
 
     public synchronized void storeBlockChanges(BH header) {
-        if (!enabled) { return; }
+        if (!enabled) {
+            return;
+        }
         currentUpdates.blockHeader = header;
         blockUpdates.put(new ByteArrayWrapper(header.getHash()), currentUpdates);
         currentUpdates = new Updates();
     }
 
     public synchronized void prune(BH header) {
-        if (!enabled) { return; }
+        if (!enabled) {
+            return;
+        }
         ByteArrayWrapper blockHashW = new ByteArrayWrapper(header.getHash());
         Updates updates = blockUpdates.remove(blockHashW);
         if (updates != null) {

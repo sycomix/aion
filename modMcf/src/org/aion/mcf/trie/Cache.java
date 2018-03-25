@@ -214,8 +214,11 @@ public class Cache {
 
         return cacheDump.toString();
     }
+    
+    // not thread-safe method, please lock it when call from multi thread access.
+    // now, only contract details use this to attach db to cache.
 
-    public synchronized void setDB(IByteArrayKeyValueStore kvds) {
+    public void setDB(IByteArrayKeyValueStore kvds) {
         if (this.dataSource == kvds) {
             return;
         }

@@ -703,7 +703,7 @@ public final class  P2pMgr implements IP2pMgr {
             selector = Selector.open();
 
             scheduledWorkers = new ScheduledThreadPoolExecutor(1);
-            workers = Executors.newFixedThreadPool(Math.min(Runtime.getRuntime().availableProcessors() * 2, 16), new ThreadFactory() {
+            workers = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2, new ThreadFactory() {
 
                 private AtomicInteger cnt = new AtomicInteger();
 

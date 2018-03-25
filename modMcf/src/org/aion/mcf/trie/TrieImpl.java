@@ -139,7 +139,8 @@ public class TrieImpl implements Trie {
     }
 
     public void deserializeRoot(byte[] data) {
-        synchronized (cache) {
+        // why lock?
+        //synchronized (cache) {
             try {
                 ByteArrayInputStream b = new ByteArrayInputStream(data);
                 ObjectInputStream o = new ObjectInputStream(b);
@@ -147,7 +148,7 @@ public class TrieImpl implements Trie {
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
-        }
+        //}
     }
 
     public boolean isPruningEnabled() {
@@ -610,7 +611,7 @@ public class TrieImpl implements Trie {
     }
 
     public void deserialize(byte[] data) {
-        synchronized (cache) {
+        //synchronized (cache) {
             RLPList rlpList = (RLPList) RLP.decode2(data).get(0);
 
             RLPItem keysElement = (RLPItem) rlpList.get(0);
@@ -628,7 +629,7 @@ public class TrieImpl implements Trie {
             }
 
             this.deserializeRoot(root.getRLPData());
-        }
+        //}
     }
 
     public byte[] serialize() {
