@@ -62,10 +62,10 @@ public final class SyncMgr {
 
     private final static Logger log = AionLoggerFactory.getLogger(LogEnum.SYNC.name());
 
-    private int syncBackwardMax = 16;
-    private int syncImportMax = 32;
+    private int syncBackwardMax = 256;
+    private int syncImportMax = 128;
 
-    private int blocksQueueMax = 64; // block header wrappers
+    private int blocksQueueMax = 256; // block header wrappers
 
     private AionBlockchainImpl chain;
 

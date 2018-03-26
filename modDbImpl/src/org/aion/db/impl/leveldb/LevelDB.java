@@ -73,7 +73,7 @@ public class LevelDB extends AbstractDB {
         options.compressionType(enableDbCompression ? CompressionType.SNAPPY : CompressionType.NONE);
 
         // block size is the threshhod when split blocks.
-        options.blockSize(8 * 1024 * 1024);
+        options.blockSize(64 * 1024 * 1024);
 
         // if you use ramdisk, don't need turn this on.
         options.writeBufferSize(DEFAULT_WRITE_BUFFER_SIZE_BYTES);
