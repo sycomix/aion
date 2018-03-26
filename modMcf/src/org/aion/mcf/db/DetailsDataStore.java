@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.base.db.IContractDetails;
 import org.aion.base.db.IRepositoryConfig;
 import org.aion.base.type.Address;
@@ -48,22 +48,22 @@ public class DetailsDataStore<BLK extends AbstractBlock<BH, ? extends ITransacti
     private JournalPruneDataSource<BLK, BH> storageDSPrune;
     private IRepositoryConfig repoConfig;
 
-    private IByteArrayKeyValueDatabase detailsSrc;
-    private IByteArrayKeyValueDatabase storageSrc;
+    private IBytesKVDB detailsSrc;
+    private IBytesKVDB storageSrc;
     private Set<ByteArrayWrapper> removes = new HashSet<>();
 
     public DetailsDataStore() {
     }
 
-    public DetailsDataStore(IByteArrayKeyValueDatabase detailsCache, IByteArrayKeyValueDatabase storageCache,
+    public DetailsDataStore(IBytesKVDB detailsCache, IBytesKVDB storageCache,
             IRepositoryConfig repoConfig) {
 
         this.repoConfig = repoConfig;
         withDb(detailsCache, storageCache);
     }
 
-    public DetailsDataStore<BLK, BH> withDb(IByteArrayKeyValueDatabase detailsSrc,
-            IByteArrayKeyValueDatabase storageSrc) {
+    public DetailsDataStore<BLK, BH> withDb(IBytesKVDB detailsSrc,
+            IBytesKVDB storageSrc) {
         this.detailsSrc = detailsSrc;
         this.storageSrc = storageSrc;
         this.storageDSPrune = new JournalPruneDataSource<>(storageSrc);
@@ -195,7 +195,7 @@ public class DetailsDataStore<BLK extends AbstractBlock<BH, ? extends ITransacti
         }
     }
 
-    public static List<ByteArrayWrapper> dumpKeys(IByteArrayKeyValueDatabase ds) {
+    public static List<ByteArrayWrapper> dumpKeys(IBytesKVDB ds) {
         ArrayList<ByteArrayWrapper> keys = new ArrayList<>();
 
         for (byte[] key : ds.keys()) {

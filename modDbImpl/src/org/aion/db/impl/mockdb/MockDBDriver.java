@@ -1,6 +1,6 @@
 package org.aion.db.impl.mockdb;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.db.impl.IDriver;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
@@ -29,7 +29,7 @@ public class MockDBDriver implements IDriver {
      * @inheritDoc
      */
     @Override
-    public IByteArrayKeyValueDatabase connect(Properties info) {
+    public IBytesKVDB connect(Properties info) {
 
         String dbType = info.getProperty(PROP_DB_TYPE);
         String dbName = info.getProperty(PROP_DB_NAME);

@@ -34,18 +34,18 @@
  ******************************************************************************/
 package org.aion.mcf.ds;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVDB;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.base.util.ByteUtil;
 
 import java.util.*;
 
-public class XorDataSource implements IByteArrayKeyValueStore {
-    IByteArrayKeyValueStore source;
+public class XorDataSource implements IBytesKVStore {
+    IBytesKVStore source;
     byte[] subKey;
 
-    public XorDataSource(IByteArrayKeyValueStore source, byte[] subKey) {
+    public XorDataSource(IBytesKVStore source, byte[] subKey) {
         this.source = source;
         this.subKey = subKey;
     }

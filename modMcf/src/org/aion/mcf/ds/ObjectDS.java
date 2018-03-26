@@ -27,32 +27,34 @@ package org.aion.mcf.ds;
 import java.util.Optional;
 
 import org.aion.base.db.Flushable;
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 
 /**
  * Object Datasource.
  *
  * @param <V>
  */
-public class ObjectDataSource<V> implements Flushable {
+public class ObjectDS<V> implements Flushable {
 
-    private IByteArrayKeyValueDatabase src;
+    private IBytesKVDB src;
+
     Serializer<V, byte[]> serializer;
+
     boolean cacheOnWrite = true;
 
-    public ObjectDataSource(IByteArrayKeyValueDatabase src, Serializer<V, byte[]> serializer) {
+    public ObjectDS(IBytesKVDB src, Serializer<V, byte[]> serializer) {
         this.src = src;
         this.serializer = serializer;
     }
 
-    public ObjectDataSource<V> withWriteThrough(boolean writeThrough) {
-        if (!writeThrough) {
-            throw new RuntimeException("Not implemented yet");
-        }
-        return this;
-    }
+    // public ObjectDataSource<V> withWriteThrough(boolean writeThrough) {
+    // if (!writeThrough) {
+    // throw new RuntimeException("Not implemented yet");
+    // }
+    // return this;
+    // }
 
-    public ObjectDataSource<V> withCacheOnWrite(boolean cacheOnWrite) {
+    public ObjectDS<V> withCacheOnWrite(boolean cacheOnWrite) {
         this.cacheOnWrite = cacheOnWrite;
         return this;
     }
@@ -64,7 +66,7 @@ public class ObjectDataSource<V> implements Flushable {
         }
     }
 
-    public synchronized void put(byte[] key, V value) {
+    public void put(byte[] key, V value) {
         byte[] bytes = serializer.serialize(value);
         /*
          * src.put(key, bytes); if (cacheOnWrite) { cache.put(new
@@ -75,19 +77,11 @@ public class ObjectDataSource<V> implements Flushable {
         src.put(key, bytes);
     }
 
-    public synchronized void delete(byte[] key) {
+    public void delete(byte[] key) {
         src.delete(key);
     }
 
-    public synchronized V get(byte[] key) {
-
-        // Fetch the results from cache or database. Return null if doesn't
-        // exist.
-        Optional<byte[]> val = src.get(key);
-        return val.map(serializer::deserialize).orElse(null);
-    }
-    
-    public V getWithoutLock(byte[] key) {
+    public V get(byte[] key) {
 
         // Fetch the results from cache or database. Return null if doesn't
         // exist.
@@ -100,7 +94,7 @@ public class ObjectDataSource<V> implements Flushable {
      *
      * @return
      */
-    protected IByteArrayKeyValueDatabase getSrc() {
+    protected IBytesKVDB getSrc() {
         return src;
     }
 

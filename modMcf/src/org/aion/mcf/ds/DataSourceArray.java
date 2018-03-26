@@ -36,11 +36,13 @@ import java.util.Optional;
  */
 public class DataSourceArray<V> implements Flushable {
 
-    private final ObjectDataSource<V> src;
+    private final ObjectDS<V> src;
+
     private static final byte[] sizeKey = Hex.decode("FFFFFFFFFFFFFFFF");
+
     private long size = -1L;
 
-    public DataSourceArray(ObjectDataSource<V> src) {
+    public DataSourceArray(ObjectDS<V> src) {
         this.src = src;
     }
 

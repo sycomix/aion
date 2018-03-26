@@ -117,12 +117,12 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
             initializeDatabasesAndCaches();
 
             // Setup the cache for transaction data source.
-            this.transactionStore = new TransactionStore<>(transactionDatabase,
+            this.transactionStore = new TransactionStore<>(txDB,
                     AionTransactionStoreSerializer.serializer);
 
             // Setup block store.
             // TODO
-            this.blockStore = new AionBlockStore(indexDatabase, blockDatabase);
+            this.blockStore = new AionBlockStore(indexDB, blockDB);
 
             // Setup world trie.
             worldState = createStateTrie();
@@ -240,7 +240,7 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
             LOG.info("flush all databases");
 
             if (databaseGroup != null) {
-                for (IByteArrayKeyValueDatabase db : databaseGroup) {
+                for (IBytesKVDB db : databaseGroup) {
                     if (db instanceof AbstractDatabaseWithCache) {
                         // printing heap cache stats when enabled
                         AbstractDatabaseWithCache dbwc = (AbstractDatabaseWithCache) db;
@@ -488,7 +488,7 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
         AionRepositoryImpl repo = new AionRepositoryImpl();
         repo.blockStore = blockStore;
         repo.cfg = cfg;
-        repo.stateDatabase = this.stateDatabase;
+        repo.stateDB = this.stateDB;
         repo.stateDSPrune = this.stateDSPrune;
         repo.pruneBlockCount = this.pruneBlockCount;
         repo.detailsDS = this.detailsDS;
@@ -520,20 +520,20 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
             }
 
             try {
-                if (stateDatabase != null) {
-                    stateDatabase.close();
+                if (stateDB != null) {
+                    stateDB.close();
                     LOGGEN.info("State database closed.");
-                    stateDatabase = null;
+                    stateDB = null;
                 }
             } catch (Exception e) {
                 LOGGEN.error("Exception occurred while closing the state database.", e);
             }
 
             try {
-                if (transactionDatabase != null) {
-                    transactionDatabase.close();
+                if (txDB != null) {
+                    txDB.close();
                     LOGGEN.info("Transaction database closed.");
-                    transactionDatabase = null;
+                    txDB = null;
                 }
             } catch (Exception e) {
                 LOGGEN.error("Exception occurred while closing the transaction database.", e);
@@ -563,8 +563,8 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
      *
      * @return
      */
-    public IByteArrayKeyValueDatabase getStateDatabase() {
-        return this.stateDatabase;
+    public IBytesKVDB getStateDatabase() {
+        return this.stateDB;
     }
 
     /**
@@ -577,8 +577,8 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
      *
      * @return
      */
-    public IByteArrayKeyValueDatabase getDetailsDatabase() {
-        return this.detailsDatabase;
+    public IBytesKVDB getDetailsDatabase() {
+        return this.detailDB;
     }
 
     @Override
@@ -590,7 +590,7 @@ public class AionRepositoryImpl extends AbstractRepository<AionBlock, A0BlockHea
     @Override
     public void compact() {
         if (databaseGroup != null) {
-            for (IByteArrayKeyValueDatabase db : databaseGroup) {
+            for (IBytesKVDB db : databaseGroup) {
                 db.compact();
             }
         } else {

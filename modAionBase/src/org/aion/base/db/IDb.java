@@ -49,7 +49,7 @@ import java.util.Optional;
  *          function calls which are documented to throw RuntimeException, must
  *          in fact throw a RuntimeException.
  */
-public interface IDatabase {
+public interface IDb {
 
     // Actions that change the state of the database
     // -------------------------------------------------------------------

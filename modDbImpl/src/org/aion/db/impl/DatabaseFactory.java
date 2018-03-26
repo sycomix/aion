@@ -34,7 +34,7 @@
  ******************************************************************************/
 package org.aion.db.impl;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.db.impl.h2.H2MVMap;
 import org.aion.db.impl.h2.H2MVMapWithCache;
 import org.aion.db.impl.leveldb.LevelDB;
@@ -64,7 +64,7 @@ public abstract class DatabaseFactory {
     private static final String PROP_ENABLE_HEAP_CACHE_STATS = "enable_heap_cache_stats";
     private static final String PROP_MAX_HEAP_CACHE_SIZE = "max_heap_cache_size";
 
-    public static IByteArrayKeyValueDatabase connect(Properties info) {
+    public static IBytesKVDB connect(Properties info) {
 
         DBVendor dbType = DBVendor.fromString(info.getProperty(PROP_DB_TYPE));
 
@@ -133,7 +133,7 @@ public abstract class DatabaseFactory {
         return null;
     }
 
-    public static IByteArrayKeyValueDatabase connect(String driverName, Properties info) {
+    public static IBytesKVDB connect(String driverName, Properties info) {
         try {
             // see if the given name is a valid driver
             IDriver driver = ((Class<? extends IDriver>) Class.forName(driverName)).getDeclaredConstructor()

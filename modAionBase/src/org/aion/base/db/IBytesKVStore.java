@@ -34,5 +34,5 @@
  ******************************************************************************/
 package org.aion.base.db;
 
-public interface IByteArrayKeyValueDatabase extends IByteArrayKeyValueStore, IDatabase {
+public interface IBytesKVStore extends IKVStore<byte[], byte[]> {
 }

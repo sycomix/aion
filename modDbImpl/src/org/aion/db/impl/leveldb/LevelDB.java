@@ -47,8 +47,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * @implNote The read-write lock is used only for those operations that are not synchronized
- *         by the JNI on top of the native LevelDB, namely open and close operations.
+ * @implNote The read-write lock is used only for those operations that are not
+ *           synchronized by the JNI on top of the native LevelDB, namely open
+ *           and close operations.
  */
 public class LevelDB extends AbstractDB {
 
@@ -67,18 +68,29 @@ public class LevelDB extends AbstractDB {
         Options options = new Options();
 
         options.createIfMissing(true);
+
+        // enable compression will seriously impact tx performance.
         options.compressionType(enableDbCompression ? CompressionType.SNAPPY : CompressionType.NONE);
-        options.blockSize(10 * 1024 * 1024);
-        options.writeBufferSize(DEFAULT_WRITE_BUFFER_SIZE_BYTES); // (levelDb default: 8mb)
+
+        // block size is the threshhod when split blocks.
+        options.blockSize(8 * 1024 * 1024);
+
+        // if you use ramdisk, don't need turn this on.
+        options.writeBufferSize(DEFAULT_WRITE_BUFFER_SIZE_BYTES);
+
         options.cacheSize(enableDbCache ? DEFAULT_CACHE_SIZE_BYTES : 0);
+
         options.paranoidChecks(true);
+
         options.verifyChecksums(true);
-        options.maxOpenFiles(32);
+
+        options.maxOpenFiles(4096);
 
         return options;
     }
 
-    // IDatabase functionality -----------------------------------------------------------------------------------------
+    // IDatabase functionality
+    // -----------------------------------------------------------------------------------------
 
     /**
      * @inheritDoc
@@ -205,7 +217,8 @@ public class LevelDB extends AbstractDB {
         // acquire read lock
         lock.readLock().lock();
 
-        // working heuristic for Ubuntu: both the LOCK and LOG files should get created on creation
+        // working heuristic for Ubuntu: both the LOCK and LOG files should get
+        // created on creation
         // TODO: implement a platform independent way to do this
         boolean onDisk = new File(path, "LOCK").exists() && new File(path, "LOG").exists();
 
@@ -249,7 +262,8 @@ public class LevelDB extends AbstractDB {
         return count;
     }
 
-    // IKeyValueStore functionality ------------------------------------------------------------------------------------
+    // IKeyValueStore functionality
+    // ------------------------------------------------------------------------------------
 
     /**
      * @inheritDoc
@@ -433,7 +447,8 @@ public class LevelDB extends AbstractDB {
         }
     }
 
-    // AbstractDB functionality ----------------------------------------------------------------------------------------
+    // AbstractDB functionality
+    // ----------------------------------------------------------------------------------------
 
     public boolean commitCache(Map<ByteArrayWrapper, byte[]> cache) {
         // acquire read lock

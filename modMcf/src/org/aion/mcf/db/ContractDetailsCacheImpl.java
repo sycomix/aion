@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.db.IContractDetails;
 import org.aion.base.type.Address;
 import org.aion.mcf.vm.types.DataWord;
@@ -210,7 +210,7 @@ public class ContractDetailsCacheImpl extends AbstractContractDetails<DataWord> 
     }
 
     @Override
-    public void setDataSource(IByteArrayKeyValueStore dataSource) {
+    public void setDataSource(IBytesKVStore dataSource) {
         throw new UnsupportedOperationException("Can't set datasource in cache implementation.");
     }
 }

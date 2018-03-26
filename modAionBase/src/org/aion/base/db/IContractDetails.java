@@ -91,5 +91,5 @@ public interface IContractDetails<DW> {
 
     IContractDetails<DW> getSnapshotTo(byte[] hash);
 
-    void setDataSource(IByteArrayKeyValueStore dataSource);
+    void setDataSource(IBytesKVStore dataSource);
 }

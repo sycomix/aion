@@ -20,8 +20,8 @@
  *******************************************************************************/
 package org.aion.mcf.trie;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVDB;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.type.IBlock;
 import org.aion.base.type.IBlockHeader;
 import org.aion.base.util.ByteArrayWrapper;
@@ -38,7 +38,7 @@ import java.util.*;
  * passed.
  */
 public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockHeader>
-        implements IByteArrayKeyValueStore {
+        implements IBytesKVStore {
 
     private class Updates {
 
@@ -63,13 +63,13 @@ public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockH
 
     Map<ByteArrayWrapper, Ref> refCount = new HashMap<>();
 
-    private IByteArrayKeyValueDatabase src;
+    private IBytesKVDB src;
     // block hash => updates
     private LinkedHashMap<ByteArrayWrapper, Updates> blockUpdates = new LinkedHashMap<>();
     private Updates currentUpdates = new Updates();
     private boolean enabled = true;
 
-    public JournalPruneDataSource(IByteArrayKeyValueDatabase src) {
+    public JournalPruneDataSource(IBytesKVDB src) {
         this.src = src;
     }
 
@@ -250,7 +250,7 @@ public class JournalPruneDataSource<BLK extends IBlock<?, ?>, BH extends IBlockH
         throw new UnsupportedOperationException();
     }
 
-    public IByteArrayKeyValueDatabase getSrc() {
+    public IBytesKVDB getSrc() {
         return src;
     }
 }

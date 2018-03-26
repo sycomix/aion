@@ -26,18 +26,18 @@ package org.aion.mcf.db;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.base.util.FastByteComparisons;
 import org.aion.mcf.core.AbstractTxInfo;
-import org.aion.mcf.ds.ObjectDataSource;
+import org.aion.mcf.ds.ObjectDS;
 import org.aion.mcf.ds.Serializer;
 import org.aion.mcf.types.AbstractTransaction;
 import org.aion.mcf.types.AbstractTxReceipt;
 import org.apache.commons.collections4.map.LRUMap;
 
 public class TransactionStore<TX extends AbstractTransaction, TXR extends AbstractTxReceipt<TX>, INFO extends AbstractTxInfo<TXR, TX>>
-        extends ObjectDataSource<List<INFO>> {
+        extends ObjectDS<List<INFO>> {
     private final LRUMap<ByteArrayWrapper, Object> lastSavedTxHash = new LRUMap<>(5000);
     private final Object object = new Object();
 
@@ -76,7 +76,7 @@ public class TransactionStore<TX extends AbstractTransaction, TXR extends Abstra
         return null;
     }
 
-    public TransactionStore(IByteArrayKeyValueDatabase src, Serializer<List<INFO>, byte[]> serializer) {
+    public TransactionStore(IBytesKVDB src, Serializer<List<INFO>, byte[]> serializer) {
         super(src, serializer);
         // withCacheSize(256);
         withCacheOnWrite(true);

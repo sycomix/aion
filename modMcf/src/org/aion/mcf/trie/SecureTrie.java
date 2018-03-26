@@ -34,18 +34,18 @@
  ******************************************************************************/
 package org.aion.mcf.trie;
 
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVStore;
 
 import static org.aion.base.util.ByteUtil.EMPTY_BYTE_ARRAY;
 import static org.aion.crypto.HashUtil.h256;
 
 public class SecureTrie extends TrieImpl implements Trie {
 
-    public SecureTrie(IByteArrayKeyValueStore db) {
+    public SecureTrie(IBytesKVStore db) {
         this(db, "");
     }
 
-    public SecureTrie(IByteArrayKeyValueStore db, Object root) {
+    public SecureTrie(IBytesKVStore db, Object root) {
         super(db, root);
     }
 

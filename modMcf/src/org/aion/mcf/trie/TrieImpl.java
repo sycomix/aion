@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.base.util.FastByteComparisons;
 import org.aion.base.util.Hex;
@@ -95,11 +95,11 @@ public class TrieImpl implements Trie {
 
     private boolean pruningEnabled;
 
-    public TrieImpl(IByteArrayKeyValueStore db) {
+    public TrieImpl(IBytesKVStore db) {
         this(db, "");
     }
 
-    public TrieImpl(IByteArrayKeyValueStore db, Object root) {
+    public TrieImpl(IBytesKVStore db, Object root) {
         this.cache = new Cache(db);
         this.root = root;
         this.prevRoot = root;

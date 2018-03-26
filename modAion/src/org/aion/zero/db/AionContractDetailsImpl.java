@@ -32,7 +32,7 @@ import static org.aion.crypto.HashUtil.h256;
 
 import java.util.*;
 
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.db.IContractDetails;
 import org.aion.base.type.Address;
 import org.aion.base.util.ByteArrayWrapper;
@@ -47,7 +47,7 @@ import org.aion.mcf.trie.SecureTrie;
 
 public class AionContractDetailsImpl extends AbstractContractDetails<DataWord> {
 
-    private IByteArrayKeyValueStore dataSource;
+    private IBytesKVStore dataSource;
 
     private byte[] rlpEncoded;
 
@@ -57,7 +57,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails<DataWord> {
     private SecureTrie storageTrie = new SecureTrie(null);
 
     public boolean externalStorage;
-    private IByteArrayKeyValueStore externalStorageDataSource;
+    private IBytesKVStore externalStorageDataSource;
 
     public AionContractDetailsImpl() {
         super(-1, 1000000);
@@ -274,11 +274,11 @@ public class AionContractDetailsImpl extends AbstractContractDetails<DataWord> {
         }
     }
 
-    public void setDataSource(IByteArrayKeyValueStore dataSource) {
+    public void setDataSource(IBytesKVStore dataSource) {
         this.dataSource = dataSource;
     }
 
-    private IByteArrayKeyValueStore getExternalStorageDataSource() {
+    private IBytesKVStore getExternalStorageDataSource() {
         if (externalStorageDataSource == null) {
             externalStorageDataSource = new XorDataSource(dataSource,
                     h256(("details-storage/" + address.toString()).getBytes()));
@@ -286,7 +286,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails<DataWord> {
         return externalStorageDataSource;
     }
 
-    public void setExternalStorageDataSource(IByteArrayKeyValueStore dataSource) {
+    public void setExternalStorageDataSource(IBytesKVStore dataSource) {
         this.externalStorageDataSource = dataSource;
         this.externalStorage = true;
     }
@@ -304,7 +304,7 @@ public class AionContractDetailsImpl extends AbstractContractDetails<DataWord> {
     @Override
     public IContractDetails<DataWord> getSnapshotTo(byte[] hash) {
 
-        IByteArrayKeyValueStore keyValueDataSource = this.storageTrie.getCache().getDb();
+        IBytesKVStore keyValueDataSource = this.storageTrie.getCache().getDb();
 
         SecureTrie snapStorage = wrap(hash).equals(wrap(EMPTY_TRIE_HASH))
                 ? new SecureTrie(keyValueDataSource, "".getBytes())

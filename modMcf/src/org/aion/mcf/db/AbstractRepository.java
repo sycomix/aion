@@ -21,7 +21,7 @@
 
 package org.aion.mcf.db;
 
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.base.db.IRepository;
 import org.aion.base.db.IRepositoryConfig;
 import org.aion.base.type.IBlockHeader;
@@ -75,16 +75,22 @@ public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends
 
     /********** Database and Cache parameters **************/
 
-    protected IByteArrayKeyValueDatabase transactionDatabase;
-    protected IByteArrayKeyValueDatabase detailsDatabase;
-    protected IByteArrayKeyValueDatabase storageDatabase;
-    protected IByteArrayKeyValueDatabase indexDatabase;
-    protected IByteArrayKeyValueDatabase blockDatabase;
-    protected IByteArrayKeyValueDatabase stateDatabase;
+    protected IBytesKVDB txDB;
 
-    protected Collection<IByteArrayKeyValueDatabase> databaseGroup;
+    protected IBytesKVDB detailDB;
+
+    protected IBytesKVDB storageDB;
+
+    protected IBytesKVDB indexDB;
+
+    protected IBytesKVDB blockDB;
+
+    protected IBytesKVDB stateDB;
+
+    protected Collection<IBytesKVDB> databaseGroup;
 
     protected JournalPruneDataSource<BLK, BH> stateDSPrune;
+    
     protected DetailsDataStore<BLK, BH> detailsDS;
 
     // Read Write Lock
@@ -92,7 +98,9 @@ public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends
 
     // Block related parameters.
     protected long bestBlockNumber = 0;
+    
     protected long pruneBlockCount;
+    
     protected boolean pruneEnabled = true;
 
     // Current blockstore.
@@ -146,10 +154,12 @@ public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends
             for (String v : this.cfg.getVendorList()) {
                 vendorListString.add("\"" + v + "\"");
             }
-//            throw new DriverManagerNoSuitableDriverRegisteredException(
-//                    "Please check the vendor name field in /config/config.xml.\n"
-//                            + "No suitable driver found with name \"" + this.cfg.getActiveVendor()
-//                            + "\".\nPlease select a driver from the following vendor list: " + vendorListString);
+            // throw new DriverManagerNoSuitableDriverRegisteredException(
+            // "Please check the vendor name field in /config/config.xml.\n"
+            // + "No suitable driver found with name \"" +
+            // this.cfg.getActiveVendor()
+            // + "\".\nPlease select a driver from the following vendor list: "
+            // + vendorListString);
         }
 
         Properties sharedProps = new Properties();
@@ -169,32 +179,32 @@ public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends
              * Setup datastores
              */
             sharedProps.setProperty("db_name", STATE_DB);
-            this.stateDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(stateDatabase);
+            this.stateDB = connectAndOpen(sharedProps);
+            databaseGroup.add(stateDB);
 
             sharedProps.setProperty("db_name", TRANSACTION_DB);
-            this.transactionDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(transactionDatabase);
+            this.txDB = connectAndOpen(sharedProps);
+            databaseGroup.add(txDB);
 
             sharedProps.setProperty("db_name", DETAILS_DB);
-            this.detailsDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(detailsDatabase);
+            this.detailDB = connectAndOpen(sharedProps);
+            databaseGroup.add(detailDB);
 
             sharedProps.setProperty("db_name", STORAGE_DB);
-            this.storageDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(storageDatabase);
+            this.storageDB = connectAndOpen(sharedProps);
+            databaseGroup.add(storageDB);
 
             sharedProps.setProperty("db_name", INDEX_DB);
-            this.indexDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(indexDatabase);
+            this.indexDB = connectAndOpen(sharedProps);
+            databaseGroup.add(indexDB);
 
             sharedProps.setProperty("db_name", BLOCK_DB);
-            this.blockDatabase = connectAndOpen(sharedProps);
-            databaseGroup.add(blockDatabase);
+            this.blockDB = connectAndOpen(sharedProps);
+            databaseGroup.add(blockDB);
 
             // Setup the cache for transaction data source.
-            this.detailsDS = new DetailsDataStore<>(detailsDatabase, storageDatabase, this.cfg);
-            stateDSPrune = new JournalPruneDataSource<>(stateDatabase);
+            this.detailsDS = new DetailsDataStore<>(detailDB, storageDB, this.cfg);
+            stateDSPrune = new JournalPruneDataSource<>(stateDB);
             pruneBlockCount = pruneEnabled ? this.cfg.getPrune() : -1;
         } catch (Exception e) { // Setting up databases and caches went wrong.
             throw e;
@@ -208,12 +218,12 @@ public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends
 
     @Override
     public boolean isClosed() {
-        return stateDatabase == null;
+        return stateDB == null;
     }
 
-    private IByteArrayKeyValueDatabase connectAndOpen(Properties info) {
+    private IBytesKVDB connectAndOpen(Properties info) {
         // get the database object
-        IByteArrayKeyValueDatabase db = DatabaseFactory.connect(info);
+        IBytesKVDB db = DatabaseFactory.connect(info);
 
         // open the database connection
         db.open();

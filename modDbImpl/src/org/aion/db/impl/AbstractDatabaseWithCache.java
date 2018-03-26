@@ -39,7 +39,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
 import com.google.common.primitives.Longs;
-import org.aion.base.db.IByteArrayKeyValueDatabase;
+import org.aion.base.db.IBytesKVDB;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.db.impl.AbstractDB;
 import org.aion.log.AionLoggerFactory;
@@ -57,7 +57,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @author Alexandra Roatis
  * @implNote Assumes persistent database. Overwrite method if this is not the case.
  */
-public abstract class AbstractDatabaseWithCache implements IByteArrayKeyValueDatabase {
+public abstract class AbstractDatabaseWithCache implements IBytesKVDB {
 
     private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
 

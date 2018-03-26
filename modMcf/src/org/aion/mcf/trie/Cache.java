@@ -45,7 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import org.aion.base.db.IByteArrayKeyValueStore;
+import org.aion.base.db.IBytesKVStore;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.crypto.HashUtil;
 import org.aion.log.AionLoggerFactory;
@@ -60,12 +60,12 @@ public class Cache {
 
     private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
 
-    private IByteArrayKeyValueStore dataSource;
+    private IBytesKVStore dataSource;
     private Map<ByteArrayWrapper, Node> nodes = new LinkedHashMap<>();
     private Set<ByteArrayWrapper> removedNodes = new HashSet<>();
     private boolean isDirty;
 
-    public Cache(IByteArrayKeyValueStore dataSource) {
+    public Cache(IBytesKVStore dataSource) {
         this.dataSource = dataSource;
     }
 
@@ -199,7 +199,7 @@ public class Cache {
         return nodes;
     }
 
-    public synchronized IByteArrayKeyValueStore getDb() {
+    public synchronized IBytesKVStore getDb() {
         return dataSource;
     }
 
@@ -218,7 +218,7 @@ public class Cache {
     // not thread-safe method, please lock it when call from multi thread access.
     // now, only contract details use this to attach db to cache.
 
-    public void setDB(IByteArrayKeyValueStore kvds) {
+    public void setDB(IBytesKVStore kvds) {
         if (this.dataSource == kvds) {
             return;
         }

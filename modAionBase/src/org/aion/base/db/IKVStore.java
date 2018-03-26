@@ -51,7 +51,7 @@ import java.util.Set;
  *           function calls which are documented to throw RuntimeException, will
  *           throw a RuntimeException.
  */
-public interface IKeyValueStore<K, V> extends AutoCloseable {
+public interface IKVStore<K, V> extends AutoCloseable {
 
     // Querying
     // --------------------------------------------------------------------------------------------------------
