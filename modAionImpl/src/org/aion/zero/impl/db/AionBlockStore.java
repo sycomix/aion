@@ -162,30 +162,26 @@ public class AionBlockStore extends AbstractPowBlockstore<AionBlock, A0BlockHead
 		// add new blockinfo into index.
 		index.set(block.getNumber(), blockInfos);
 
+		// @TODO:
+		// link block with parent is great idea, but as it serialized into DB , the link
+		// lost!
+
 		// link parent block if possible.
-		AionBlock parentBlk = aionBlocks.get(block.getParentHash());
-		if (parentBlk != null)
-			block.parent = parentBlk;
-		else {
-
-			// if current block addin before parent, usually this not suppose happen inside
-			// kernel as it's sequential add,
-			// but here still try to fix by re-link child block.
-			// efficient algo will be use index levels to search
-			// instead iterate "aionblocks"
-
-			long lvl = block.getNumber() + 1;
-			List<BlockInfo> bis = index.get(lvl);
-			if (bis != null && bis.size() > 1) {
-				for (BlockInfo bi : bis) {
-					AionBlock ab = aionBlocks.get(bi.hash);
-					if (Arrays.compare(ab.getParentHash(), block.getHash()) == 0) {
-						ab.parent = block;
-					}
-				}
-			}
-
-		}
+		// AionBlock parentBlk = aionBlocks.get(block.getParentHash());
+		// if (parentBlk != null)
+		// block.parent = parentBlk;
+		// else {
+		// long lvl = block.getNumber() + 1;
+		// List<BlockInfo> bis = index.get(lvl);
+		// if (bis != null && bis.size() > 1) {
+		// for (BlockInfo bi : bis) {
+		// AionBlock ab = aionBlocks.get(bi.hash);
+		// if (Arrays.compare(ab.getParentHash(), block.getHash()) == 0) {
+		// ab.parent = block;
+		// }
+		// }
+		// }
+		// }
 
 		aionBlocks.put(block.getHash(), block);
 
@@ -333,21 +329,24 @@ public class AionBlockStore extends AbstractPowBlockstore<AionBlock, A0BlockHead
 		for (int i = 0; i < qty; ++i) {
 			blocks.add(block);
 
-			// block = this.blocks.get(block.getParentHash());
+			block = aionBlocks.get(block.getParentHash());
+
+			if (block == null)
+				break;
 
 			// as block already link with parent when add in
-			AionBlock pBlk = block.parent;
-
-			if (pBlk == null) {
-				// fail back to get parent by hash.
-				pBlk = this.aionBlocks.get(block.getParentHash());
-
-				if (pBlk == null)
-					break;
-				else {
-					block = pBlk;
-				}
-			}
+			// AionBlock pBlk = block.parent;
+			//
+			// if (pBlk == null) {
+			// // fail back to get parent by hash.
+			// pBlk = this.aionBlocks.get(block.getParentHash());
+			//
+			// if (pBlk == null)
+			// break;
+			// else {
+			// block = pBlk;
+			// }
+			// }
 		}
 
 		return blocks;

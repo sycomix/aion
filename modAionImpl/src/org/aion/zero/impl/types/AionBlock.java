@@ -58,8 +58,6 @@ public class AionBlock extends AbstractBlock<A0BlockHeader, AionTransaction> imp
 
     private Trie txsState;
     
-    public transient AionBlock parent;
-
     /* Constructors */
     private AionBlock() {
     }
