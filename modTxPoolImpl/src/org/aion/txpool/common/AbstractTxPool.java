@@ -43,14 +43,11 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class AbstractTxPool<TX extends ITransaction> {
 
 	protected static final AtomicLong blkNrgLimit = new AtomicLong(10_000_000L);
-
 	protected static final int multiplyM = 1_000_000;
 	protected static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.TXPOOL.toString());
 	protected static final int SEQUENTAILTXNCOUNT_MAX = 25;
 	protected static long txn_timeout = 86_400; // 1 day by second
-
 	protected static int blkSizeLimit = 16_000_000; // 16MB
-
 	protected final long TXN_TIMEOUT_MIN = 10; // 10s
 	protected final long TXN_TIMEOUT_MAX = 86_400; // 1 day
 	protected final int BLK_SIZE_MAX = 16_000_000; // 16MB
@@ -510,12 +507,8 @@ public abstract class AbstractTxPool<TX extends ITransaction> {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			BigInteger bestNc = bestNonce.get(addr);
-
-			if (bestNc != null) {
-				String bnStr = bestNc.toString();
-				LOG.debug("addr[{}] bn[{}] txnonce[{}]", addr.toString(), bnStr, bn.toString());
-			}
+			LOG.debug("addr[{}] bn[{}] txnonce[{}]", addr.toString(),
+					bestNonce.get(addr) == null ? "-1" : bestNonce.get(addr).toString(), bn.toString());
 		}
 
 		if (bestNonce.get(addr) == null || bestNonce.get(addr).compareTo(bn) < 0) {
@@ -592,4 +585,5 @@ public abstract class AbstractTxPool<TX extends ITransaction> {
 			inFeePool.set(false);
 		}
 	}
+
 }

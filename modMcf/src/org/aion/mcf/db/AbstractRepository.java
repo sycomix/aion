@@ -33,7 +33,7 @@ import org.aion.db.impl.DatabaseFactory;
 //import org.aion.dbmgr.exception.DriverManagerNoSuitableDriverRegisteredException;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
-import org.aion.mcf.trie.JournalPruneDataSource;
+// import org.aion.mcf.trie.JournalPruneDataSource;
 import org.aion.mcf.trie.Trie;
 import org.aion.mcf.types.AbstractBlock;
 import org.aion.mcf.vm.types.DataWord;
@@ -48,204 +48,206 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Abstract Repository class.
  */
 public abstract class AbstractRepository<BLK extends AbstractBlock<BH, ? extends ITransaction>, BH extends IBlockHeader, BSB extends IBlockStoreBase<?, ?>>
-        implements IRepository<AccountState, DataWord, BSB> {
+		implements IRepository<AccountState, DataWord, BSB> {
 
-    // Logger
-    protected static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
-    protected static final Logger LOGGEN = AionLoggerFactory.getLogger(LogEnum.GEN.name());
+	// Logger
+	protected static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
+	protected static final Logger LOGGEN = AionLoggerFactory.getLogger(LogEnum.GEN.name());
 
-    // Configuration parameter
-    protected IRepositoryConfig cfg;
+	// Configuration parameter
+	protected IRepositoryConfig cfg;
 
-    /*********** Database Name Constants ***********/
+	/*********** Database Name Constants ***********/
 
-    protected static final String TRANSACTION_DB = "transaction";
-    protected static final String INDEX_DB = "index";
-    protected static final String BLOCK_DB = "block";
-    protected static final String DETAILS_DB = "details";
-    protected static final String STORAGE_DB = "storage";
-    protected static final String STATE_DB = "state";
+	protected static final String TRANSACTION_DB = "transaction";
+	protected static final String INDEX_DB = "index";
+	protected static final String BLOCK_DB = "block";
+	protected static final String DETAILS_DB = "details";
+	protected static final String STORAGE_DB = "storage";
+	protected static final String STATE_DB = "state";
 
-    // State trie.
-    protected Trie worldState;
+	// State trie.
+	protected Trie worldState;
 
-    // DB Path
-    // protected final static String DB_PATH = new
-    // File(System.getProperty("user.dir"), "database").getAbsolutePath();
+	// DB Path
+	// protected final static String DB_PATH = new
+	// File(System.getProperty("user.dir"), "database").getAbsolutePath();
 
-    /********** Database and Cache parameters **************/
+	/********** Database and Cache parameters **************/
 
-    protected IBytesKVDB txDB;
+	protected IBytesKVDB txDB;
 
-    protected IBytesKVDB detailDB;
+	protected IBytesKVDB detailDB;
 
-    protected IBytesKVDB storageDB;
+	protected IBytesKVDB storageDB;
 
-    protected IBytesKVDB indexDB;
+	protected IBytesKVDB indexDB;
 
-    protected IBytesKVDB blockDB;
+	protected IBytesKVDB blockDB;
 
-    protected IBytesKVDB stateDB;
+	protected IBytesKVDB stateDB;
 
-    protected Collection<IBytesKVDB> databaseGroup;
+	protected Collection<IBytesKVDB> databaseGroup;
 
-    protected JournalPruneDataSource<BLK, BH> stateDSPrune;
-    
-    protected DetailsDataStore<BLK, BH> detailsDS;
+	// protected JournalPruneDataSource<BLK, BH> stateDSPrune;
 
-    // Read Write Lock
-    protected ReadWriteLock rwLock = new ReentrantReadWriteLock();
+	protected DetailsDataStore<BLK, BH> detailsDS;
 
-    // Block related parameters.
-    protected long bestBlockNumber = 0;
-    
-    protected long pruneBlockCount;
-    
-    protected boolean pruneEnabled = true;
+	// Read Write Lock
+	protected ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
-    // Current blockstore.
-    public BSB blockStore;
+	// Block related parameters.
+	protected long bestBlockNumber = 0;
 
-    // Flag to see if the current instance is a snapshot.
-    protected boolean isSnapshot = false;
+	protected long pruneBlockCount;
 
-    /**
-     * Initializes all necessary databases and caches.
-     *
-     * @throws Exception
-     */
-    protected void initializeDatabasesAndCaches() throws Exception {
-        /*
-         * Given that this function is not in the critical path and only called
-         * on startup, enforce conditions here for safety
-         */
-        Objects.requireNonNull(this.cfg);
-        Objects.requireNonNull(this.cfg.getVendorList());
-        Objects.requireNonNull(this.cfg.getActiveVendor());
+	protected boolean pruneEnabled = true;
 
-        /**
-         * TODO: this is hack There should be some information on the
-         * persistence of the DB so that we do not have to manually check.
-         * Currently this information exists within
-         * {@link DBVendor#getPersistence()}, but is not utilized.
-         */
-        if (this.cfg.getActiveVendor().equals(DBVendor.MOCKDB.toValue())) {
-            LOG.warn("WARNING: Active vendor is set to MockDB, data will not persist");
-        } else {
-            // verify user-provided path
-            File f = new File(this.cfg.getDbPath());
-            try {
-                // ask the OS if the path is valid
-                f.getCanonicalPath();
+	// Current blockstore.
+	public BSB blockStore;
 
-                // try to create the directory
-                if (!f.exists()) {
-                    f.mkdirs();
-                }
-            } catch (Exception e) {
-                throw new InvalidFilePathException("Resolved file path \"" + this.cfg.getDbPath()
-                        + "\" not valid as reported by the OS or a read/write permissions error occurred. Please provide an alternative DB file path in /config/config.xml.");
-            }
-        }
+	// Flag to see if the current instance is a snapshot.
+	protected boolean isSnapshot = false;
 
-        if (!Arrays.asList(this.cfg.getVendorList()).contains(this.cfg.getActiveVendor())) {
+	/**
+	 * Initializes all necessary databases and caches.
+	 *
+	 * @throws Exception
+	 */
+	protected void initializeDatabasesAndCaches() throws Exception {
+		/*
+		 * Given that this function is not in the critical path and only called on
+		 * startup, enforce conditions here for safety
+		 */
+		Objects.requireNonNull(this.cfg);
+		Objects.requireNonNull(this.cfg.getVendorList());
+		Objects.requireNonNull(this.cfg.getActiveVendor());
 
-            ArrayList<String> vendorListString = new ArrayList<>();
-            for (String v : this.cfg.getVendorList()) {
-                vendorListString.add("\"" + v + "\"");
-            }
-            // throw new DriverManagerNoSuitableDriverRegisteredException(
-            // "Please check the vendor name field in /config/config.xml.\n"
-            // + "No suitable driver found with name \"" +
-            // this.cfg.getActiveVendor()
-            // + "\".\nPlease select a driver from the following vendor list: "
-            // + vendorListString);
-        }
+		/**
+		 * TODO: this is hack There should be some information on the persistence of the
+		 * DB so that we do not have to manually check. Currently this information
+		 * exists within {@link DBVendor#getPersistence()}, but is not utilized.
+		 */
+		if (this.cfg.getActiveVendor().equals(DBVendor.MOCKDB.toValue())) {
+			LOG.warn("WARNING: Active vendor is set to MockDB, data will not persist");
+		} else {
+			// verify user-provided path
+			File f = new File(this.cfg.getDbPath());
+			try {
+				// ask the OS if the path is valid
+				f.getCanonicalPath();
 
-        // TODO: these parameters should be converted to enum
-        // should correspond with those listed in {@code DatabaseFactory}
-        Properties sharedProps = new Properties();
-        sharedProps.setProperty("db_type", this.cfg.getActiveVendor());
-        sharedProps.setProperty("db_path", this.cfg.getDbPath());
-        sharedProps.setProperty("enable_auto_commit", String.valueOf(this.cfg.isAutoCommitEnabled()));
-        sharedProps.setProperty("enable_db_cache", String.valueOf(this.cfg.isDbCacheEnabled()));
-        sharedProps.setProperty("enable_db_compression", String.valueOf(this.cfg.isDbCompressionEnabled()));
-        sharedProps.setProperty("enable_heap_cache", String.valueOf(this.cfg.isHeapCacheEnabled()));
-        sharedProps.setProperty("max_heap_cache_size", this.cfg.getMaxHeapCacheSize());
-        sharedProps.setProperty("enable_heap_cache_stats", String.valueOf(this.cfg.isHeapCacheStatsEnabled()));
-        sharedProps.setProperty("max_fd_alloc_size", String.valueOf(this.cfg.getMaxFdAllocSize()));
-        sharedProps.setProperty("block_size", String.valueOf(this.cfg.getBlockSize()));
-        sharedProps.setProperty("write_buffer_size", String.valueOf(this.cfg.getWriteBufferSize()));
-        sharedProps.setProperty("cache_size", String.valueOf(this.cfg.getCacheSize()));
+				// try to create the directory
+				if (!f.exists()) {
+					f.mkdirs();
+				}
+			} catch (Exception e) {
+				throw new InvalidFilePathException("Resolved file path \"" + this.cfg.getDbPath()
+						+ "\" not valid as reported by the OS or a read/write permissions error occurred. Please provide an alternative DB file path in /config/config.xml.");
+			}
+		}
 
-        try {
-            databaseGroup = new ArrayList<>();
+		if (!Arrays.asList(this.cfg.getVendorList()).contains(this.cfg.getActiveVendor())) {
 
-            /**
-             * Setup datastores
-             */
-            sharedProps.setProperty("db_name", STATE_DB);
-            this.stateDB = connectAndOpen(sharedProps);
-            databaseGroup.add(stateDB);
+			ArrayList<String> vendorListString = new ArrayList<>();
+			for (String v : this.cfg.getVendorList()) {
+				vendorListString.add("\"" + v + "\"");
+			}
+			// throw new DriverManagerNoSuitableDriverRegisteredException(
+			// "Please check the vendor name field in /config/config.xml.\n"
+			// + "No suitable driver found with name \"" +
+			// this.cfg.getActiveVendor()
+			// + "\".\nPlease select a driver from the following vendor list: "
+			// + vendorListString);
+		}
 
-            sharedProps.setProperty("db_name", TRANSACTION_DB);
-            this.txDB = connectAndOpen(sharedProps);
-            databaseGroup.add(txDB);
+		// TODO: these parameters should be converted to enum
+		// should correspond with those listed in {@code DatabaseFactory}
+		Properties sharedProps = new Properties();
+		sharedProps.setProperty("db_type", this.cfg.getActiveVendor());
+		sharedProps.setProperty("db_path", this.cfg.getDbPath());
+		sharedProps.setProperty("enable_auto_commit", String.valueOf(this.cfg.isAutoCommitEnabled()));
+		sharedProps.setProperty("enable_db_cache", String.valueOf(this.cfg.isDbCacheEnabled()));
+		sharedProps.setProperty("enable_db_compression", String.valueOf(this.cfg.isDbCompressionEnabled()));
+		sharedProps.setProperty("enable_heap_cache", String.valueOf(this.cfg.isHeapCacheEnabled()));
+		sharedProps.setProperty("max_heap_cache_size", this.cfg.getMaxHeapCacheSize());
+		sharedProps.setProperty("enable_heap_cache_stats", String.valueOf(this.cfg.isHeapCacheStatsEnabled()));
+		sharedProps.setProperty("max_fd_alloc_size", String.valueOf(this.cfg.getMaxFdAllocSize()));
+		sharedProps.setProperty("block_size", String.valueOf(this.cfg.getBlockSize()));
+		sharedProps.setProperty("write_buffer_size", String.valueOf(this.cfg.getWriteBufferSize()));
+		sharedProps.setProperty("cache_size", String.valueOf(this.cfg.getCacheSize()));
 
-            sharedProps.setProperty("db_name", DETAILS_DB);
-            this.detailDB = connectAndOpen(sharedProps);
-            databaseGroup.add(detailDB);
+		try {
+			databaseGroup = new ArrayList<>();
 
-            sharedProps.setProperty("db_name", STORAGE_DB);
-            this.storageDB = connectAndOpen(sharedProps);
-            databaseGroup.add(storageDB);
+			/**
+			 * Setup datastores
+			 */
+			sharedProps.setProperty("db_name", STATE_DB);
+			this.stateDB = connectAndOpen(sharedProps);
+			databaseGroup.add(stateDB);
 
-            sharedProps.setProperty("db_name", INDEX_DB);
-            this.indexDB = connectAndOpen(sharedProps);
-            databaseGroup.add(indexDB);
+			sharedProps.setProperty("db_name", TRANSACTION_DB);
+			this.txDB = connectAndOpen(sharedProps);
+			databaseGroup.add(txDB);
 
-            sharedProps.setProperty("db_name", BLOCK_DB);
-            this.blockDB = connectAndOpen(sharedProps);
-            databaseGroup.add(blockDB);
+			sharedProps.setProperty("db_name", DETAILS_DB);
+			this.detailDB = connectAndOpen(sharedProps);
+			databaseGroup.add(detailDB);
 
-            // Setup the cache for transaction data source.
-            this.detailsDS = new DetailsDataStore<>(detailDB, storageDB, this.cfg);
-            stateDSPrune = new JournalPruneDataSource<>(stateDB);
-            pruneBlockCount = pruneEnabled ? this.cfg.getPrune() : -1;
-        } catch (Exception e) { // Setting up databases and caches went wrong.
-            throw e;
-        }
-    }
+			sharedProps.setProperty("db_name", STORAGE_DB);
+			this.storageDB = connectAndOpen(sharedProps);
+			databaseGroup.add(storageDB);
 
-    @Override
-    public BSB getBlockStore() {
-        return this.blockStore;
-    }
+			sharedProps.setProperty("db_name", INDEX_DB);
+			this.indexDB = connectAndOpen(sharedProps);
+			databaseGroup.add(indexDB);
 
-    @Override
-    public boolean isClosed() {
-        return stateDB == null;
-    }
+			sharedProps.setProperty("db_name", BLOCK_DB);
+			this.blockDB = connectAndOpen(sharedProps);
+			databaseGroup.add(blockDB);
 
-    private IBytesKVDB connectAndOpen(Properties info) {
-        // get the database object
-        IBytesKVDB db = DatabaseFactory.connect(info);
+			// Setup the cache for transaction data source.
+			this.detailsDS = new DetailsDataStore<>(detailDB, storageDB, this.cfg);
+			// disabling use of JournalPruneDataSource until functionality properly tested
+			// TODO-AR: enable pruning with the JournalPruneDataSource
+			// stateDSPrune = new JournalPruneDataSource<>(stateDatabase);
 
-        // open the database connection
-        db.open();
+			pruneBlockCount = pruneEnabled ? this.cfg.getPrune() : -1;
+		} catch (Exception e) { // Setting up databases and caches went wrong.
+			throw e;
+		}
+	}
 
-        // check object status
-        if (db == null) {
-            LOG.error("Database <{}> connection could not be established for <{}>.", info.getProperty("db_type"),
-                    info.getProperty("db_name"));
-        }
+	@Override
+	public BSB getBlockStore() {
+		return this.blockStore;
+	}
 
-        // check persistence status
-        if (!db.isCreatedOnDisk()) {
-            LOG.error("Database <{}> cannot be saved to disk for <{}>.", info.getProperty("db_type"),
-                    info.getProperty("db_name"));
-        }
+	@Override
+	public boolean isClosed() {
+		return stateDB == null;
+	}
 
-        return db;
-    }
+	private IBytesKVDB connectAndOpen(Properties info) {
+		// get the database object
+		IBytesKVDB db = DatabaseFactory.connect(info);
+
+		// open the database connection
+		db.open();
+
+		// check object status
+		if (db == null) {
+			LOG.error("Database <{}> connection could not be established for <{}>.", info.getProperty("db_type"),
+					info.getProperty("db_name"));
+		}
+
+		// check persistence status
+		if (!db.isCreatedOnDisk()) {
+			LOG.error("Database <{}> cannot be saved to disk for <{}>.", info.getProperty("db_type"),
+					info.getProperty("db_name"));
+		}
+
+		return db;
+	}
 }
