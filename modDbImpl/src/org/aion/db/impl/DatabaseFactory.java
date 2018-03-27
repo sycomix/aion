@@ -49,102 +49,116 @@ import java.util.Properties;
 
 public abstract class DatabaseFactory {
 
-    private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
+	private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
 
-    private static final String PROP_DB_TYPE = "db_type";
+	private static final String PROP_DB_TYPE = "db_type";
 
-    private static final String PROP_DB_NAME = "db_name";
-    private static final String PROP_DB_PATH = "db_path";
+	private static final String PROP_DB_NAME = "db_name";
+	private static final String PROP_DB_PATH = "db_path";
 
-    private static final String PROP_ENABLE_AUTO_COMMIT = "enable_auto_commit";
-    private static final String PROP_ENABLE_DB_CACHE = "enable_db_cache";
-    private static final String PROP_ENABLE_DB_COMPRESSION = "enable_db_compression";
-    private static final String PROP_ENABLE_HEAP_CACHE = "enable_heap_cache";
+	private static final String PROP_ENABLE_AUTO_COMMIT = "enable_auto_commit";
+	private static final String PROP_ENABLE_DB_CACHE = "enable_db_cache";
+	private static final String PROP_ENABLE_DB_COMPRESSION = "enable_db_compression";
+	private static final String PROP_ENABLE_HEAP_CACHE = "enable_heap_cache";
 
-    private static final String PROP_ENABLE_HEAP_CACHE_STATS = "enable_heap_cache_stats";
-    private static final String PROP_MAX_HEAP_CACHE_SIZE = "max_heap_cache_size";
+	private static final String PROP_ENABLE_HEAP_CACHE_STATS = "enable_heap_cache_stats";
+	private static final String PROP_MAX_HEAP_CACHE_SIZE = "max_heap_cache_size";
 
-    public static IBytesKVDB connect(Properties info) {
+	public static final String PROP_MAX_FD_ALLOC = "max_fd_alloc_size";
+	public static final String PROP_BLOCK_SIZE = "block_size";
 
-        DBVendor dbType = DBVendor.fromString(info.getProperty(PROP_DB_TYPE));
+	public static final String PROP_WRITE_BUFFER_SIZE = "write_buffer_size";
+	public static final String PROP_CACHE_SIZE = "cache_size";
 
-        String dbName = info.getProperty(PROP_DB_NAME);
+	public static IBytesKVDB connect(Properties info) {
 
-        boolean enableHeapCache = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE));
-        boolean enableAutoCommit = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_AUTO_COMMIT));
+		DBVendor dbType = DBVendor.fromString(info.getProperty(PROP_DB_TYPE));
 
-        // check for unknown or mock database
-        switch (dbType) {
-            case UNKNOWN:
-                // the driver, if correct should check path and name
-                return connect(info.getProperty(PROP_DB_TYPE), info);
-            case MOCKDB:
-                // don't care about the path value
-                if (enableHeapCache) {
-                    return new MockDBWithCache(dbName, enableAutoCommit, info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
-                            Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)));
-                } else {
-                    return new MockDB(dbName);
-                }
-            default:
-                break;
-        }
+		String dbName = info.getProperty(PROP_DB_NAME);
 
-        String dbPath = info.getProperty(PROP_DB_PATH);
+		boolean enableHeapCache = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE));
+		boolean enableAutoCommit = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_AUTO_COMMIT));
 
-        boolean enableDbCache = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_DB_CACHE));
-        boolean enableDbCompression = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_DB_COMPRESSION));
+		// check for unknown or mock database
+		switch (dbType) {
+		case UNKNOWN:
+			// the driver, if correct should check path and name
+			return connect(info.getProperty(PROP_DB_TYPE), info);
+		case MOCKDB:
+			// don't care about the path value
+			if (enableHeapCache) {
+				return new MockDBWithCache(dbName, enableAutoCommit, info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
+						Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)));
+			} else {
+				return new MockDB(dbName);
+			}
+		default:
+			break;
+		}
 
-        // ensure not null path for other databases
-        if (dbPath == null) {
-            LOG.error("Please provide a database path value that is not null.");
-            return null;
-        }
+		String dbPath = info.getProperty(PROP_DB_PATH);
 
-        // ensure not null name for other databases
-        if (dbName == null) {
-            LOG.error("Please provide a database name value that is not null.");
-            return null;
-        }
+		boolean enableDbCache = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_DB_CACHE));
+		boolean enableDbCompression = Boolean.parseBoolean(info.getProperty(PROP_ENABLE_DB_COMPRESSION));
 
-        // select database implementation
-        switch (dbType) {
-            case LEVELDB:
-                if (enableHeapCache) {
-                    return new LevelDBWithCache(dbName, dbPath, enableDbCache, enableDbCompression, enableAutoCommit,
-                            info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
-                            Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)));
-                } else {
-                    return new LevelDB(dbName, dbPath, enableDbCache, enableDbCompression);
-                }
-            case H2:
-                if (enableHeapCache) {
-                    return new H2MVMapWithCache(dbName, dbPath, enableDbCache, enableDbCompression, enableAutoCommit,
-                            info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
-                            Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)));
-                } else {
-                    return new H2MVMap(dbName, dbPath, enableDbCache, enableDbCompression);
-                }
-            default:
-                break;
-        }
+		// ensure not null path for other databases
+		if (dbPath == null) {
+			LOG.error("Please provide a database path value that is not null.");
+			return null;
+		}
 
-        LOG.error("Invalid database type provided: {}", dbType);
-        return null;
-    }
+		// ensure not null name for other databases
+		if (dbName == null) {
+			LOG.error("Please provide a database name value that is not null.");
+			return null;
+		}
 
-    public static IBytesKVDB connect(String driverName, Properties info) {
-        try {
-            // see if the given name is a valid driver
-            IDriver driver = ((Class<? extends IDriver>) Class.forName(driverName)).getDeclaredConstructor()
-                    .newInstance();
-            // return a connection
-            return driver.connect(info);
-        } catch (Exception e) {
-            LOG.error("Could not load database driver.", e);
-        }
+		// select database implementation
+		switch (dbType) {
+		case LEVELDB:
+			// grab leveldb specific parameters
+			int max_fd_alloc_size = Integer.parseInt(info.getProperty(PROP_MAX_FD_ALLOC));
+			int block_size = Integer.parseInt(info.getProperty(PROP_BLOCK_SIZE));
+			int write_buffer_size = Integer.parseInt(info.getProperty(PROP_WRITE_BUFFER_SIZE));
+			int cache_size = Integer.parseInt(info.getProperty(PROP_CACHE_SIZE));
 
-        LOG.error("Invalid database driver provided: {}", driverName);
-        return null;
-    }
+			if (enableHeapCache) {
+				return new LevelDBWithCache(dbName, dbPath, enableDbCache, enableDbCompression, enableAutoCommit,
+						info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
+						Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)), max_fd_alloc_size,
+						block_size, write_buffer_size, cache_size);
+			} else {
+				return new LevelDB(dbName, dbPath, enableDbCache, enableDbCompression, max_fd_alloc_size, block_size,
+						write_buffer_size, cache_size);
+			}
+		case H2:
+			if (enableHeapCache) {
+				return new H2MVMapWithCache(dbName, dbPath, enableDbCache, enableDbCompression, enableAutoCommit,
+						info.getProperty(PROP_MAX_HEAP_CACHE_SIZE),
+						Boolean.parseBoolean(info.getProperty(PROP_ENABLE_HEAP_CACHE_STATS)));
+			} else {
+				return new H2MVMap(dbName, dbPath, enableDbCache, enableDbCompression);
+			}
+		default:
+			break;
+		}
+
+		LOG.error("Invalid database type provided: {}", dbType);
+		return null;
+	}
+
+	public static IBytesKVDB connect(String driverName, Properties info) {
+		try {
+			// see if the given name is a valid driver
+			IDriver driver = ((Class<? extends IDriver>) Class.forName(driverName)).getDeclaredConstructor()
+					.newInstance();
+			// return a connection
+			return driver.connect(info);
+		} catch (Exception e) {
+			LOG.error("Could not load database driver.", e);
+		}
+
+		LOG.error("Invalid database driver provided: {}", driverName);
+		return null;
+	}
 }
