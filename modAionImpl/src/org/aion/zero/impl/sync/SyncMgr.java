@@ -48,6 +48,7 @@ import org.aion.evtmgr.impl.evt.EventConsensus;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.aion.p2p.IP2pMgr;
+import org.aion.p2p.tree.BHTree;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.A0BlockHeader;
@@ -74,6 +75,8 @@ public final class SyncMgr {
     private IEventMgr evtMgr;
 
     private AtomicBoolean start = new AtomicBoolean(true);
+    
+    BHTree bht = new BHTree();
 
     // set as last block number within one batch import when first block for
     // imported success as best
@@ -205,6 +208,11 @@ public final class SyncMgr {
     }
 
     private void getHeaders(BigInteger _selfTd){
+        if (importedBlocks.size() > blocksQueueMax) {
+            log.debug("Imported blocks queue is full. Stop requesting headers");
+            return;
+        }
+
         workers.submit(new TaskGetHeaders(p2pMgr, Math.max(1, this.chain.getBestBlock().getNumber() + 1 - syncBackwardMax), this.syncImportMax, _selfTd, log));
     }
 
@@ -231,6 +239,11 @@ public final class SyncMgr {
         // filter imported block headers
         List<A0BlockHeader> filtered = new ArrayList<>();
         A0BlockHeader prev = null;
+        
+//        Node n = new Node();
+//        this.bht.put();
+        
+        
         for(A0BlockHeader current : _headers){
 
             // ignore this batch if any invalidated header
@@ -240,8 +253,10 @@ public final class SyncMgr {
             }
 
             // break if not consisting
-            if(prev != null && current.getNumber() != (prev.getNumber() + 1))
-                break;
+            if(prev != null && (current.getNumber() != (prev.getNumber() + 1) || !Arrays.equals(current.getParentHash(), prev.getHash()))) {
+                log.debug("<inconsistent-block-headers>");
+                return;
+            }
 
             // add if not cached
             if(!importedBlockHashes.containsKey(ByteArrayWrapper.wrap(current.getHash())))
@@ -265,7 +280,7 @@ public final class SyncMgr {
     public void validateAndAddBlocks(int _nodeIdHashcode, String _displayId, final List<byte[]> _bodies) {
 
         if (importedBlocks.size() > blocksQueueMax) {
-            log.debug("imported blocks queue is full!");
+            log.debug("Imported blocks queue is full. Stop validating incoming bodies");
             return;
         }
 
