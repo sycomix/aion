@@ -57,6 +57,13 @@ public final class ReqStatusHandler extends Handler {
 
     private byte[] genesisHash;
 
+    
+    // multi thread access, but don't need sync as it can be dirty read.
+    ResStatus retCache;
+    long retCacheTs;
+
+    static final long CACHE_INTERVAL = 1000;
+
     public ReqStatusHandler(final Logger _log, final IAionBlockchain _chain, final IP2pMgr _mgr,
             final byte[] _genesisHash) {
         super(Ver.V0, Ctrl.SYNC, Act.REQ_STATUS);
@@ -69,8 +76,27 @@ public final class ReqStatusHandler extends Handler {
     @Override
     public void receive(int _nodeIdHashcode, String _displayId, byte[] _msg) {
         this.log.debug("<req-status node={}>", _displayId);
-        ResStatus res = new ResStatus(this.chain.getBestBlock().getNumber(), this.chain.getTotalDifficulty().toByteArray(),
-                    this.chain.getBestBlockHash(), this.genesisHash);
-        this.mgr.send(_nodeIdHashcode, res);
+
+        if (retCacheTs == 0) {
+            retCache = new ResStatus(this.chain.getBestBlock().getNumber(),
+                    this.chain.getTotalDifficulty().toByteArray(), this.chain.getBestBlockHash(), this.genesisHash);
+
+            retCacheTs = System.currentTimeMillis();
+
+            this.mgr.send(_nodeIdHashcode, retCache);
+
+        }
+
+        long currTs = System.currentTimeMillis();
+        if ((currTs - retCacheTs) > CACHE_INTERVAL) {
+            retCache = new ResStatus(this.chain.getBestBlock().getNumber(),
+                    this.chain.getTotalDifficulty().toByteArray(), this.chain.getBestBlockHash(), this.genesisHash);
+
+            retCacheTs = currTs;
+
+            this.mgr.send(_nodeIdHashcode, retCache);
+        }
+
+        this.mgr.send(_nodeIdHashcode, retCache);
     }
 }

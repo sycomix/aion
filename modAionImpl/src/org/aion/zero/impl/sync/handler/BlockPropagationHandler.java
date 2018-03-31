@@ -54,9 +54,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author yao
  *
- * Handles state and actions related to block propagation
+ *         Handles state and actions related to block propagation
  *
- * TODO: exists as functionality of SyncMgr, need to decouple
+ *         TODO: exists as functionality of SyncMgr, need to decouple
  */
 public class BlockPropagationHandler {
 
@@ -68,11 +68,11 @@ public class BlockPropagationHandler {
     }
 
     /**
-     * Size of the cache maintained within the map, a lower cacheSize
-     * saves space, but indicates we may "forget" about a block sooner.
+     * Size of the cache maintained within the map, a lower cacheSize saves
+     * space, but indicates we may "forget" about a block sooner.
      *
-     * This can possibly lead to increase network traffic and unecessary
-     * process (?)
+     * This can possibly lead to increase network traffic and unecessary process
+     * (?)
      */
     private final int cacheSize;
 
@@ -81,8 +81,13 @@ public class BlockPropagationHandler {
      */
     private IAionBlockchain blockchain;
 
+    private AionBlock blockCache;
+    private long blockCacheTs;
+    private static final long BLOCK_CACHE_INTERVAL = 1000;
+
     /**
-     * LRU cache map, maintains the latest cacheSize blocks seen (not counting duplicates).
+     * LRU cache map, maintains the latest cacheSize blocks seen (not counting
+     * duplicates).
      */
     private final Map<ByteArrayWrapper, Boolean> cacheMap;
 
@@ -92,22 +97,24 @@ public class BlockPropagationHandler {
 
     private static final Logger log = AionLoggerFactory.getLogger(LogEnum.SYNC.name());
 
-    public BlockPropagationHandler(final int cacheSize,
-                                   final IAionBlockchain blockchain,
-                                   final IP2pMgr p2pManager,
-                                   BlockHeaderValidator<A0BlockHeader> headerValidator) {
+    public BlockPropagationHandler(final int cacheSize, final IAionBlockchain blockchain, final IP2pMgr p2pManager,
+            BlockHeaderValidator<A0BlockHeader> headerValidator) {
         this.cacheSize = cacheSize;
 
         // all accesses to cacheMap are guarded by instance
         this.cacheMap = new LRUMap<>(this.cacheSize);
 
-        // the expectation is that we will not have as many peers as we have blocks
+        // the expectation is that we will not have as many peers as we have
+        // blocks
         this.blockchain = blockchain;
 
         // record our own nodeId to cover corner case
         this.p2pManager = p2pManager;
 
         this.blockHeaderValidator = headerValidator;
+
+        blockCacheTs = System.currentTimeMillis();
+        blockCache = blockchain.getBestBlock();
     }
 
     // assumption here is that blocks propagated have unique hashes
@@ -116,7 +123,7 @@ public class BlockPropagationHandler {
             return;
         ByteArrayWrapper hashWrapped = new ByteArrayWrapper(block.getHash());
 
-        synchronized(this.cacheMap) {
+        synchronized (this.cacheMap) {
             this.cacheMap.put(hashWrapped, true);
         }
 
@@ -137,26 +144,36 @@ public class BlockPropagationHandler {
         if (!this.blockHeaderValidator.validate(block.getHeader(), log))
             return PropStatus.DROPPED;
 
-        // guarantees if multiple requests of same block appears, only one goes through
-        synchronized(this.cacheMap) {
+        // guarantees if multiple requests of same block appears, only one goes
+        // through
+        synchronized (this.cacheMap) {
             if (this.cacheMap.containsKey(hashWrapped))
                 return PropStatus.DROPPED;
             // regardless if block processing is successful, place into cache
             this.cacheMap.put(hashWrapped, true);
         }
 
-        /*
-        AionBlock bestBlock = this.blockchain.getBestBlock();
+        long currTs = System.currentTimeMillis();
+        if ((currTs - blockCacheTs) > BLOCK_CACHE_INTERVAL) {
+            blockCache = blockchain.getBestBlock();
+            blockCacheTs = currTs;
 
-        // assumption is that we are on the correct chain
-        if (bestBlock.getNumber() > block.getNumber())
-            return PropStatus.DROPPED;
+        }
 
-        // do a very simple check to verify parent child relationship
-        // this implies we only propagate blocks from our own chain
-        if (!bestBlock.isParentOf(block))
+        if ( (blockCache.getNumber() - block.getNumber()) > 16)
             return PropStatus.DROPPED;
-        */
+        
+        if ( (blockCache.getNumber() - block.getNumber()) < 16) {
+            send(block, nodeId);
+            return PropStatus.PROPAGATED;
+        }
+
+        // *
+        // * // do a very simple check to verify parent child relationship //
+        // this
+        // * implies we only propagate blocks from our own chain if
+        // * (!bestBlock.isParentOf(block)) return PropStatus.DROPPED;
+        // */
 
         // send
         boolean sent = send(block, nodeId);
@@ -165,8 +182,8 @@ public class BlockPropagationHandler {
         long t1 = System.currentTimeMillis();
         ImportResult result = this.blockchain.tryToConnect(block);
         long t2 = System.currentTimeMillis();
-        log.info("<import-status: node = {}, number = {}, txs = {}, result = {}, time elapsed = {} ms>",
-                _displayId, block.getNumber(), block.getTransactionsList().size(), result, t2 - t1);
+        log.info("<import-status: node = {}, number = {}, txs = {}, result = {}, time elapsed = {} ms>", _displayId,
+                block.getNumber(), block.getTransactionsList().size(), result, t2 - t1);
 
         // process resulting state
         if (sent && result.isSuccessful())
@@ -185,20 +202,18 @@ public class BlockPropagationHandler {
     private boolean send(AionBlock block, int nodeId) {
         // current proposal is to send to all peers with lower blockNumbers
         AtomicBoolean sent = new AtomicBoolean();
-        this.p2pManager.getActiveNodes().values()
-                .stream()
-                .filter(n -> n.getIdHash() != nodeId)
-                .filter(n -> n.getBestBlockNumber() <= block.getNumber())
-                .forEach(n -> {
+        this.p2pManager.getActiveNodes().values().stream().filter(n -> n.getIdHash() != nodeId)
+                .filter(n -> n.getBestBlockNumber() <= block.getNumber()).forEach(n -> {
                     if (log.isDebugEnabled())
-                        log.debug("<sending-new-block hash=" + block.getShortHash() + " to-node=" + n.getIdShort() + ">");
+                        log.debug(
+                                "<sending-new-block hash=" + block.getShortHash() + " to-node=" + n.getIdShort() + ">");
                     this.p2pManager.send(n.getIdHash(), new BroadcastNewBlock(block));
                     sent.getAndSet(true);
                 });
         return sent.get();
     }
 
-//    public int getCacheSize() {
-//        return this.cacheSize;
-//    }
+    // public int getCacheSize() {
+    // return this.cacheSize;
+    // }
 }
