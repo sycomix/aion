@@ -370,8 +370,8 @@ public final class  P2pMgr implements IP2pMgr {
         _channel.configureBlocking(false);
         _channel.socket().setSoTimeout(TIMEOUT_MSG_READ);
         _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
-        _channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
-        _channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+//        _channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+//        _channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
     }
 
     /**
@@ -717,7 +717,7 @@ public final class  P2pMgr implements IP2pMgr {
             selector = Selector.open();
 
             scheduledWorkers = new ScheduledThreadPoolExecutor(1);
-            workers = Executors.newFixedThreadPool(Math.min(Runtime.getRuntime().availableProcessors() * 2, 16), new ThreadFactory() {
+            workers = Executors.newFixedThreadPool(Math.max(Runtime.getRuntime().availableProcessors() * 4, 16), new ThreadFactory() {
 
                 private AtomicInteger cnt = new AtomicInteger();
 
