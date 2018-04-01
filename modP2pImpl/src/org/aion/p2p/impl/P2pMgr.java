@@ -153,18 +153,9 @@ public final class P2pMgr implements IP2pMgr {
                                 cnt += ret;
                             }
 
-                            if (cnt > 0) {
-                                // if (showLog)
-                                // System.out.println(" NIO new package, size =
-                                // " + cnt);
-                            } else {
-                                // if (showLog)
-                                // System.out.println(" NIO new package, size =
-                                // 0, p2pmgr continue." );
+                            // read empty select key, continue.
+                            if (cnt <= 0) {
                                 continue;
-                                // chanBuf.isClosed.set(true);
-                                // closeSocket((SocketChannel) sk.channel());
-                                // chanBuf.readBuf.position(0);
                             }
 
                             int prevCnt = cnt + chanBuf.buffRemain;
@@ -179,30 +170,40 @@ public final class P2pMgr implements IP2pMgr {
 
                             } while (cnt > 0);
 
+                            // check if really read data.
+                            if (cnt > prevCnt) {
+                                throw new P2pException(
+                                        "IO read overflow!  suppose read:" + prevCnt + " real left:" + cnt);
+                            }
+
                             chanBuf.buffRemain = cnt;
 
-                            // cycline buffer
-                            int remain = chanBuf.readBuf.remaining();
-                            if (remain < 128 * 1024) {
+                            if (cnt == 0) {
+                                chanBuf.readBuf.rewind();
+                            } else {
+                                // cycline buffer
+                                int remain = chanBuf.readBuf.remaining();
+                                if (remain < 128 * 1024) {
 
-                                if (showLog)
-                                    System.out.println(" NIO new buffer! , size = " + cnt + " __________ buf remain:"
-                                            + chanBuf.readBuf.remaining() + " limit:" + chanBuf.readBuf.limit());
-                                if (cnt == 0) {
-                                    // all reader , body read was done , just
-                                    // move position.
-                                    chanBuf.readBuf.position(0);
+                                    if (showLog)
+                                        System.out.println(" NIO new buffer! , size = " + cnt
+                                                + " __________ buf remain:" + chanBuf.readBuf.remaining() + " limit:"
+                                                + chanBuf.readBuf.limit());
 
-                                } else {
-                                    // if still not read buffer ,  then copy it and move it to front.  later , this can change to ring buffer. 
+                                    // if still not read buffer , then copy
+                                    // it
+                                    // and move it to front. later , this
+                                    // can
+                                    // change to ring buffer.
                                     int currPos = chanBuf.readBuf.position();
                                     if (cnt != 0) {
                                         byte[] tmp = new byte[cnt];
                                         chanBuf.readBuf.position(currPos - cnt);
                                         chanBuf.readBuf.get(tmp);
-                                        chanBuf.readBuf.position(0);
+                                        chanBuf.readBuf.rewind();
                                         chanBuf.readBuf.put(tmp);
                                     }
+
                                 }
                             }
 
@@ -576,19 +577,14 @@ public final class P2pMgr implements IP2pMgr {
             return cnt;
 
         int origPos = readBuffer.position();
+
         int startP = origPos - cnt;
 
         readBuffer.position(startP);
 
-        byte[] hdr = new byte[Header.LEN];
-
-        readBuffer.get(hdr);
+        _cb.readHead(readBuffer);
 
         readBuffer.position(origPos);
-
-        _cb.headerBuf.put(hdr);
-
-        _cb.header = Header.decode(_cb.headerBuf.array());
 
         return cnt - Header.LEN;
 
@@ -603,8 +599,12 @@ public final class P2pMgr implements IP2pMgr {
     private int readBody(final ChannelBuffer _cb, ByteBuffer readBuffer, int cnt) throws IOException {
 
         int bodyLen = _cb.header.getLen();
-        if (_cb.bodyBuf == null)
-            _cb.bodyBuf = ByteBuffer.allocate(bodyLen);
+
+        // some msg have nobody.
+        if (bodyLen == 0) {
+            _cb.body = new byte[0];
+            return cnt;
+        }
 
         if (cnt < bodyLen)
             return cnt;
@@ -614,14 +614,9 @@ public final class P2pMgr implements IP2pMgr {
 
         readBuffer.position(startP);
 
-        byte[] body = new byte[bodyLen];
-        readBuffer.get(body);
-
+        _cb.readBody(readBuffer);
+        
         readBuffer.position(origPos);
-
-        _cb.bodyBuf.put(body);
-
-        _cb.body = _cb.bodyBuf.array();
 
         return cnt - bodyLen;
     }

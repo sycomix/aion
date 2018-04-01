@@ -44,11 +44,9 @@ class ChannelBuffer {
 
     int nodeIdHash = 0;
 
-    ByteBuffer headerBuf = ByteBuffer.allocate(Header.LEN);
-
-    ByteBuffer bodyBuf = null;
-
     Header header = null;
+
+    byte[] bsHead = new byte[Header.LEN];
 
     byte[] body = null;
 
@@ -64,13 +62,25 @@ class ChannelBuffer {
      */
     public AtomicBoolean isClosed = new AtomicBoolean(false);
 
+    void readHead(ByteBuffer buf) {
+        buf.get(bsHead);
+        try {
+            header = Header.decode(bsHead);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    void readBody(ByteBuffer buf) {
+        body = new byte[header.getLen()];
+        buf.get(body);
+    }
+
     void refreshHeader() {
-        headerBuf.clear();
         header = null;
     }
 
     void refreshBody() {
-        bodyBuf = null;
         body = null;
     }
 
