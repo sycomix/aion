@@ -39,6 +39,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class ChannelBuffer {
 
+    
+    ByteBuffer readBuf = ByteBuffer.allocate(512 * 1024);
+    int buffRemain = 0;
+    
     int nodeIdHash = 0;
 
     ByteBuffer headerBuf = ByteBuffer.allocate(Header.LEN);

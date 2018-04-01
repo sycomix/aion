@@ -105,8 +105,6 @@ public final class P2pMgr implements IP2pMgr {
         public void run() {
 
             // read buffer pre-alloc. 1M max.
-            ByteBuffer readBuf = ByteBuffer.allocate(512 * 1024);
-            int buffRemain = 0;
 
             while (start.get()) {
 
@@ -142,28 +140,30 @@ public final class P2pMgr implements IP2pMgr {
                     if (sk.isAcceptable())
                         accept();
 
-                    if (sk.isReadable())
+                    if (sk.isReadable()) {
+
+                        ChannelBuffer chanBuf = (ChannelBuffer) (sk.attachment());
                         try {
 
                             int ret;
                             int cnt = 0;
 
-                            while ((ret = ((SocketChannel) sk.channel()).read(readBuf)) > 0) {
+                            while ((ret = ((SocketChannel) sk.channel()).read(chanBuf.readBuf)) > 0) {
                                 cnt += ret;
                             }
 
                             if (cnt > 0) {
                                 System.out.println(" NIO new package, size = " + cnt);
                             } else {
-                                ((ChannelBuffer) (sk.attachment())).isClosed.set(true);
+                                chanBuf.isClosed.set(true);
                                 closeSocket((SocketChannel) sk.channel());
-                                readBuf.position(0);
+                                chanBuf.readBuf.position(0);
                             }
 
-                            int prevCnt = cnt + buffRemain;
+                            int prevCnt = cnt + chanBuf.buffRemain;
 
                             do {
-                                cnt = read(sk, readBuf, prevCnt);
+                                cnt = read(sk, chanBuf.readBuf, prevCnt);
 
                                 if (prevCnt == cnt) {
                                     break;
@@ -172,20 +172,21 @@ public final class P2pMgr implements IP2pMgr {
 
                             } while (cnt > 0);
 
-                            buffRemain = cnt;
+                            chanBuf.buffRemain = cnt;
 
                             // cycline buffer
-                            int remain = readBuf.remaining();
+                            int remain = chanBuf.readBuf.remaining();
                             if (remain < 128 * 1024) {
-                                System.out.println(" NIO new buffer! , size = " + cnt + " __________ buf remain:"
-                                        + readBuf.remaining() + " limit:" + readBuf.limit());
-                                int currPos = readBuf.position();
+                                if (showLog)
+                                    System.out.println(" NIO new buffer! , size = " + cnt + " __________ buf remain:"
+                                            + chanBuf.readBuf.remaining() + " limit:" + chanBuf.readBuf.limit());
+                                int currPos = chanBuf.readBuf.position();
                                 if (cnt != 0) {
                                     byte[] tmp = new byte[cnt];
-                                    readBuf.position(currPos - cnt);
-                                    readBuf.get(tmp);
-                                    readBuf.position(0);
-                                    readBuf.put(tmp);
+                                    chanBuf.readBuf.position(currPos - cnt);
+                                    chanBuf.readBuf.get(tmp);
+                                    chanBuf.readBuf.position(0);
+                                    chanBuf.readBuf.put(tmp);
                                 }
                             }
 
@@ -217,6 +218,7 @@ public final class P2pMgr implements IP2pMgr {
 
                             closeSocket((SocketChannel) sk.channel());
                         }
+                    }
                 }
                 // selectorLock.unlock();
             }
