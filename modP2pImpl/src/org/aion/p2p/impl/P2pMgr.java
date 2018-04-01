@@ -111,21 +111,21 @@ public final class P2pMgr implements IP2pMgr {
 
                 int num;
                 try {
-                    num = selector.select(1);
-                    // num = selector.selectNow();
+                    // num = selector.select(1);
+                    num = selector.selectNow();
                 } catch (IOException e) {
                     if (showLog)
                         System.out.println("<p2p inbound-select-io-exception>");
                     continue;
                 }
 
-                // if (num == 0) {
-                // try {
-                // Thread.sleep(0, 10);
-                // } catch (Exception e) {
-                // }
-                // continue;
-                // }
+                if (num == 0) {
+                    try {
+                        Thread.sleep(0, 10);
+                    } catch (Exception e) {
+                    }
+                    continue;
+                }
 
                 // selectorLock.lock();
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
@@ -154,8 +154,9 @@ public final class P2pMgr implements IP2pMgr {
                             }
 
                             if (cnt > 0) {
-                                if (showLog)
-                                    System.out.println(" NIO new package, size = " + cnt);
+                                // if (showLog)
+                                // System.out.println(" NIO new package, size =
+                                // " + cnt);
                             } else {
                                 // if (showLog)
                                 // System.out.println(" NIO new package, size =
@@ -183,16 +184,25 @@ public final class P2pMgr implements IP2pMgr {
                             // cycline buffer
                             int remain = chanBuf.readBuf.remaining();
                             if (remain < 128 * 1024) {
+
                                 if (showLog)
                                     System.out.println(" NIO new buffer! , size = " + cnt + " __________ buf remain:"
                                             + chanBuf.readBuf.remaining() + " limit:" + chanBuf.readBuf.limit());
-                                int currPos = chanBuf.readBuf.position();
-                                if (cnt != 0) {
-                                    byte[] tmp = new byte[cnt];
-                                    chanBuf.readBuf.position(currPos - cnt);
-                                    chanBuf.readBuf.get(tmp);
+                                if (cnt == 0) {
+                                    // all reader , body read was done , just
+                                    // move position.
                                     chanBuf.readBuf.position(0);
-                                    chanBuf.readBuf.put(tmp);
+
+                                } else {
+                                    // if still not read buffer ,  then copy it and move it to front.  later , this can change to ring buffer. 
+                                    int currPos = chanBuf.readBuf.position();
+                                    if (cnt != 0) {
+                                        byte[] tmp = new byte[cnt];
+                                        chanBuf.readBuf.position(currPos - cnt);
+                                        chanBuf.readBuf.get(tmp);
+                                        chanBuf.readBuf.position(0);
+                                        chanBuf.readBuf.put(tmp);
+                                    }
                                 }
                             }
 

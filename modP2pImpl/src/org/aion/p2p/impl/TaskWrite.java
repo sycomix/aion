@@ -76,7 +76,8 @@ public class TaskWrite implements Runnable {
         }
 
         try {
-            channelBuffer.lock.tryLock(2, TimeUnit.MILLISECONDS);
+            // channelBuffer.lock.tryLock(2, TimeUnit.MILLISECONDS);
+            channelBuffer.lock.lock();
 
             /*
              * @warning header set len (body len) before header encode
@@ -106,11 +107,13 @@ public class TaskWrite implements Runnable {
                 }
                 channelBuffer.isClosed.set(true);
             } catch (IOException ex2) {
+                String reason = ex2.getMessage();
                 if (showLog) {
-                    System.out.println(
-                            "<p2p write-msg-io-exception node=" + this.nodeShortId + ">" + ex2.getMessage());
+                    System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">" + ex2.getMessage());
                 }
-
+                if (reason.equals("Broken pipe".intern())) {
+                    channelBuffer.isClosed.set(true);
+                }
             } finally {
                 // channelBuffer.refreshHeader();
                 // channelBuffer.refreshBody();

@@ -35,6 +35,7 @@
 
 package org.aion.zero.impl.sync.handler;
 
+import org.aion.base.util.ByteArrayWrapper;
 import org.aion.mcf.blockchain.IPendingStateInternal;
 import org.aion.p2p.Ctrl;
 import org.aion.p2p.Handler;
@@ -47,11 +48,11 @@ import org.aion.zero.types.AionTransaction;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
- * @author chris
- * handler for new transaction broadcasted from network
+ * @author chris handler for new transaction broadcasted from network
  */
 public final class BroadcastTxHandler extends Handler {
 
@@ -60,6 +61,9 @@ public final class BroadcastTxHandler extends Handler {
     private final IPendingStateInternal pendingState;
 
     private final IP2pMgr p2pMgr;
+
+    private static final int Tx_CACHE_SIZE = 8192;
+    private final HashSet<ByteArrayWrapper> txCache = new HashSet<>(Tx_CACHE_SIZE);
 
     public BroadcastTxHandler(final Logger _log, final IPendingStateInternal _pendingState, final IP2pMgr _p2pMgr) {
         super(Ver.V0, Ctrl.SYNC, Act.BROADCAST_TX);
@@ -78,7 +82,9 @@ public final class BroadcastTxHandler extends Handler {
             return;
         }
 
-        pendingState.addPendingTransactions(castRawTx(broadCastTx));
+        List<AionTransaction> txs = castRawTx(broadCastTx);
+
+        pendingState.addPendingTransactions(txs);
     }
 
     private List<AionTransaction> castRawTx(List<byte[]> broadCastTx) {
@@ -87,8 +93,19 @@ public final class BroadcastTxHandler extends Handler {
         for (byte[] raw : broadCastTx) {
             try {
                 AionTransaction tx = new AionTransaction(raw);
-                if (TXValidator.isValid(tx)) {
-                    rtn.add(tx);
+
+                ByteArrayWrapper baw = new ByteArrayWrapper(tx.getHash());
+
+                if (txCache.contains(baw)) {
+                    // check cache bountry, oversize then shrink.
+                    if (txCache.size() > Tx_CACHE_SIZE) {
+                        txCache.clear();
+                    }
+
+                } else {
+                    if (TXValidator.isValid(tx)) {
+                        rtn.add(tx);
+                    }
                 }
             } catch (Exception e) {
                 // do nothing, invalid transaction from bad peer
