@@ -108,7 +108,7 @@ public class TaskWrite implements Runnable {
             } catch (IOException ex2) {
                 if (showLog) {
                     System.out.println(
-                            "<p2p write-msg-io-exception node=" + this.nodeShortId + ">" + ex2.getClass().toString());
+                            "<p2p write-msg-io-exception node=" + this.nodeShortId + ">" + ex2.getMessage());
                 }
 
             } finally {

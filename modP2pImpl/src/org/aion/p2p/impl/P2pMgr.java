@@ -31,6 +31,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -110,21 +111,21 @@ public final class P2pMgr implements IP2pMgr {
 
                 int num;
                 try {
-                    // num = selector.select(1);
-                    num = selector.selectNow();
+                    num = selector.select(1);
+                    // num = selector.selectNow();
                 } catch (IOException e) {
                     if (showLog)
                         System.out.println("<p2p inbound-select-io-exception>");
                     continue;
                 }
 
-                if (num == 0) {
-                    try {
-                        Thread.sleep(0, 10);
-                    } catch (Exception e) {
-                    }
-                    continue;
-                }
+                // if (num == 0) {
+                // try {
+                // Thread.sleep(0, 10);
+                // } catch (Exception e) {
+                // }
+                // continue;
+                // }
 
                 // selectorLock.lock();
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
@@ -156,9 +157,13 @@ public final class P2pMgr implements IP2pMgr {
                                 if (showLog)
                                     System.out.println(" NIO new package, size = " + cnt);
                             } else {
-                                chanBuf.isClosed.set(true);
-                                closeSocket((SocketChannel) sk.channel());
-                                chanBuf.readBuf.position(0);
+                                // if (showLog)
+                                // System.out.println(" NIO new package, size =
+                                // 0, p2pmgr continue." );
+                                continue;
+                                // chanBuf.isClosed.set(true);
+                                // closeSocket((SocketChannel) sk.channel());
+                                // chanBuf.readBuf.position(0);
                             }
 
                             int prevCnt = cnt + chanBuf.buffRemain;
@@ -198,6 +203,9 @@ public final class P2pMgr implements IP2pMgr {
                             }
 
                             closeSocket((SocketChannel) sk.channel());
+
+                            chanBuf.isClosed.set(true);
+                            chanBuf.readBuf.position(0);
                         } catch (P2pException e) {
 
                             if (showLog) {
@@ -209,6 +217,15 @@ public final class P2pMgr implements IP2pMgr {
                             // continue;
 
                             closeSocket((SocketChannel) sk.channel());
+                            chanBuf.isClosed.set(true);
+                            chanBuf.readBuf.position(0);
+
+                        } catch (ClosedChannelException e) {
+                            if (showLog) {
+                                System.out.println("<p2p readfail-closechannel>");
+                            }
+                            closeSocket((SocketChannel) sk.channel());
+
                         } catch (IOException e) {
 
                             if (showLog) {
@@ -218,6 +235,8 @@ public final class P2pMgr implements IP2pMgr {
                             e.printStackTrace();
 
                             closeSocket((SocketChannel) sk.channel());
+                            chanBuf.isClosed.set(true);
+                            chanBuf.readBuf.position(0);
                         }
                     }
                 }
