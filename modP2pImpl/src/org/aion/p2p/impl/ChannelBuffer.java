@@ -25,12 +25,9 @@
 package org.aion.p2p.impl;
 
 import org.aion.p2p.Header;
-import org.aion.p2p.Msg;
-
 import java.nio.ByteBuffer;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
 
 /**
  *
@@ -39,10 +36,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class ChannelBuffer {
 
-    
-    ByteBuffer readBuf = ByteBuffer.allocate(512 * 1024);
+    private static final int READ_BUFFER_SIZE = 512 * 1024; // 512K read buffer.
+
+    ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
     int buffRemain = 0;
-    
+
     int nodeIdHash = 0;
 
     ByteBuffer headerBuf = ByteBuffer.allocate(Header.LEN);
@@ -52,6 +50,8 @@ class ChannelBuffer {
     Header header = null;
 
     byte[] body = null;
+
+    Lock lock = new java.util.concurrent.locks.ReentrantLock();
 
     /**
      * write flag
@@ -63,14 +63,12 @@ class ChannelBuffer {
      */
     public AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    public BlockingQueue<Msg> messages = new ArrayBlockingQueue<>(128);
-
-    void refreshHeader(){
+    void refreshHeader() {
         headerBuf.clear();
         header = null;
     }
 
-    void refreshBody(){
+    void refreshBody() {
         bodyBuf = null;
         body = null;
     }
@@ -78,7 +76,7 @@ class ChannelBuffer {
     /**
      * @return boolean
      */
-    boolean isHeaderCompleted(){
+    boolean isHeaderCompleted() {
         return header != null;
     }
 

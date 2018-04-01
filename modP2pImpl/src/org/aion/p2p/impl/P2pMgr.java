@@ -153,7 +153,8 @@ public final class P2pMgr implements IP2pMgr {
                             }
 
                             if (cnt > 0) {
-                                System.out.println(" NIO new package, size = " + cnt);
+                                if (showLog)
+                                    System.out.println(" NIO new package, size = " + cnt);
                             } else {
                                 chanBuf.isClosed.set(true);
                                 closeSocket((SocketChannel) sk.channel());

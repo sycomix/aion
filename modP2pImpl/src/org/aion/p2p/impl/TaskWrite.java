@@ -33,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author chris
@@ -47,14 +48,8 @@ public class TaskWrite implements Runnable {
     private ChannelBuffer channelBuffer;
     private P2pMgr p2pMgr;
 
-    TaskWrite(
-            ExecutorService _workers,
-            boolean _showLog,
-            String _nodeShortId,
-            SocketChannel _sc,
-            Msg _msg,
-            ChannelBuffer _cb,
-            P2pMgr p2pMgr
+    TaskWrite(ExecutorService _workers, boolean _showLog, String _nodeShortId, SocketChannel _sc, Msg _msg,
+            ChannelBuffer _cb, P2pMgr p2pMgr
 
     ) {
         this.workers = _workers;
@@ -69,7 +64,6 @@ public class TaskWrite implements Runnable {
     private void clearChannelBuffer() {
         channelBuffer.refreshHeader();
         channelBuffer.refreshBody();
-        channelBuffer.messages.clear();
         p2pMgr.removeActive(channelBuffer.nodeIdHash);
     }
 
@@ -81,7 +75,9 @@ public class TaskWrite implements Runnable {
             return;
         }
 
-        if (channelBuffer.onWrite.compareAndSet(false, true)) {
+        try {
+            channelBuffer.lock.tryLock(2, TimeUnit.MILLISECONDS);
+
             /*
              * @warning header set len (body len) before header encode
              */
@@ -92,7 +88,8 @@ public class TaskWrite implements Runnable {
             byte[] headerBytes = h.encode();
 
             // print route
-            // System.out.println("write " + h.getVer() + "-" + h.getCtrl() + "-" + h.getAction());
+            // System.out.println("write " + h.getVer() + "-" + h.getCtrl() +
+            // "-" + h.getAction());
             ByteBuffer buf = ByteBuffer.allocate(headerBytes.length + bodyLen);
             buf.put(headerBytes);
             if (bodyBytes != null)
@@ -110,24 +107,20 @@ public class TaskWrite implements Runnable {
                 channelBuffer.isClosed.set(true);
             } catch (IOException ex2) {
                 if (showLog) {
-                    System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">");
+                    System.out.println(
+                            "<p2p write-msg-io-exception node=" + this.nodeShortId + ">" + ex2.getClass().toString());
                 }
-            } finally {
-                channelBuffer.onWrite.set(false);
 
-                if (channelBuffer.isClosed.get()) {
-                    clearChannelBuffer();
-                } else {
-                    Msg msg = channelBuffer.messages.poll();
-                    if (msg != null) {
-                        //System.out.println("write " + h.getCtrl() + "-" + h.getAction());
-                        workers.submit(new TaskWrite(workers, showLog, nodeShortId, sc, msg, channelBuffer, p2pMgr));
-                    }
-                }
+            } finally {
+                // channelBuffer.refreshHeader();
+                // channelBuffer.refreshBody();
             }
-        } else {
-            // message may get dropped here when the message queue is full.
-            channelBuffer.messages.offer(msg);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // channelBuffer.refreshHeader();
+            // channelBuffer.refreshBody();
+        } finally {
+            channelBuffer.lock.unlock();
         }
     }
 }
