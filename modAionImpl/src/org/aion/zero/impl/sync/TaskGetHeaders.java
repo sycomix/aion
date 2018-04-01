@@ -53,7 +53,7 @@ final class TaskGetHeaders implements Runnable {
 
     private final Logger log;
 
-    TaskGetHeaders(final IP2pMgr _p2p, long _fromBlock, int _syncMax, BigInteger _selfTd, Logger log){
+    TaskGetHeaders(final IP2pMgr _p2p, long _fromBlock, int _syncMax, BigInteger _selfTd, Logger log) {
         this.p2p = _p2p;
         this.fromBlock = _fromBlock;
         this.syncMax = _syncMax;
@@ -66,15 +66,15 @@ final class TaskGetHeaders implements Runnable {
         Set<Integer> ids = new HashSet<>();
         Collection<INode> preFilter = this.p2p.getActiveNodes().values();
 
-        List<INode> filtered = preFilter.stream().filter(
-                (n) -> n.getTotalDifficulty() != null &&
-                        n.getTotalDifficulty().compareTo(this.selfTd) >= 0
-        ).collect(Collectors.toList());
+        List<INode> filtered = preFilter.stream()
+                .filter((n) -> n.getTotalDifficulty() != null && n.getTotalDifficulty().compareTo(this.selfTd) >= 0)
+                .collect(Collectors.toList());
 
         if (filtered.size() > 0) {
-            Random r = new Random(System.currentTimeMillis());
-            for (int i = 0; i < 2; i++) {
-                INode node = filtered.get(r.nextInt(filtered.size()));
+            // Random r = new Random(System.currentTimeMillis());
+            for (int i = 0; i < filtered.size(); i++) {
+                // INode node = filtered.get(r.nextInt(filtered.size()));
+                INode node = filtered.get(i);
                 if (!ids.contains(node.getIdHash())) {
                     ids.add(node.getIdHash());
                     ReqBlocksHeaders rbh = new ReqBlocksHeaders(this.fromBlock, this.syncMax);

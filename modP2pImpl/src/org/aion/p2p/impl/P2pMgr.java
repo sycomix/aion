@@ -103,6 +103,11 @@ public final class P2pMgr implements IP2pMgr {
     private final class TaskInbound implements Runnable {
         @Override
         public void run() {
+
+            // read buffer pre-alloc. 1M max.
+            ByteBuffer readBuf = ByteBuffer.allocate(512 * 1024);
+            int buffRemain = 0;
+
             while (start.get()) {
 
                 int num;
@@ -117,7 +122,7 @@ public final class P2pMgr implements IP2pMgr {
 
                 if (num == 0) {
                     try {
-                        Thread.sleep(0, 100);
+                        Thread.sleep(0, 10);
                     } catch (Exception e) {
                     }
                     continue;
@@ -139,7 +144,51 @@ public final class P2pMgr implements IP2pMgr {
 
                     if (sk.isReadable())
                         try {
-                            read(sk);
+
+                            int ret;
+                            int cnt = 0;
+
+                            while ((ret = ((SocketChannel) sk.channel()).read(readBuf)) > 0) {
+                                cnt += ret;
+                            }
+
+                            if (cnt > 0) {
+                                System.out.println(" NIO new package, size = " + cnt);
+                            } else {
+                                ((ChannelBuffer) (sk.attachment())).isClosed.set(true);
+                                closeSocket((SocketChannel) sk.channel());
+                                readBuf.position(0);
+                            }
+
+                            int prevCnt = cnt + buffRemain;
+
+                            do {
+                                cnt = read(sk, readBuf, prevCnt);
+
+                                if (prevCnt == cnt) {
+                                    break;
+                                } else
+                                    prevCnt = cnt;
+
+                            } while (cnt > 0);
+
+                            buffRemain = cnt;
+
+                            // cycline buffer
+                            int remain = readBuf.remaining();
+                            if (remain < 128 * 1024) {
+                                System.out.println(" NIO new buffer! , size = " + cnt + " __________ buf remain:"
+                                        + readBuf.remaining() + " limit:" + readBuf.limit());
+                                int currPos = readBuf.position();
+                                if (cnt != 0) {
+                                    byte[] tmp = new byte[cnt];
+                                    readBuf.position(currPos - cnt);
+                                    readBuf.get(tmp);
+                                    readBuf.position(0);
+                                    readBuf.put(tmp);
+                                }
+                            }
+
                         } catch (NullPointerException e) {
 
                             if (showLog) {
@@ -260,8 +309,9 @@ public final class P2pMgr implements IP2pMgr {
                             // fire extended handshake request first
                             workers.submit(new TaskWrite(workers, showLog, node.getIdShort(), channel,
                                     cachedReqHandshake1, rb, P2pMgr.this));
-//                            workers.submit(new TaskWrite(workers, showLog, node.getIdShort(), channel,
-//                                    cachedReqHandshake, rb, P2pMgr.this));
+                            // workers.submit(new TaskWrite(workers, showLog,
+                            // node.getIdShort(), channel,
+                            // cachedReqHandshake, rb, P2pMgr.this));
 
                             if (showLog)
                                 System.out.println("<p2p action=connect-outbound addr=" + node.getIpStr() + ":" + _port
@@ -421,7 +471,7 @@ public final class P2pMgr implements IP2pMgr {
     void closeSocket(final SocketChannel _sc) {
         if (showLog)
             System.out.println("<p2p close-socket->");
-        
+
         try {
             SelectionKey sk = _sc.keyFor(selector);
             _sc.close();
@@ -484,19 +534,32 @@ public final class P2pMgr implements IP2pMgr {
      * @throws IOException
      *             IOException
      */
-    private void readHeader(final SocketChannel _sc, final ChannelBuffer _cb) throws IOException {
+    private int readHeader(final ChannelBuffer _cb, ByteBuffer readBuffer, int cnt) throws IOException {
 
-        int ret;
-        while ((ret = _sc.read(_cb.headerBuf)) > 0) {
-        }
+        // int ret;
+        // while ((ret = _sc.read(_cb.headerBuf)) > 0) {
+        // }
 
-        if (!_cb.headerBuf.hasRemaining()) {
-            _cb.header = Header.decode(_cb.headerBuf.array());
-        } else {
-            if (ret == -1) {
-                throw new P2pException("read-header-eof");
-            }
-        }
+        if (cnt < Header.LEN)
+            return cnt;
+
+        int origPos = readBuffer.position();
+        int startP = origPos - cnt;
+
+        readBuffer.position(startP);
+
+        byte[] hdr = new byte[Header.LEN];
+
+        readBuffer.get(hdr);
+
+        readBuffer.position(origPos);
+
+        _cb.headerBuf.put(hdr);
+
+        _cb.header = Header.decode(_cb.headerBuf.array());
+
+        return cnt - Header.LEN;
+
     }
 
     /**
@@ -505,22 +568,30 @@ public final class P2pMgr implements IP2pMgr {
      * @throws IOException
      *             IOException
      */
-    private void readBody(final SocketChannel _sc, final ChannelBuffer _cb) throws IOException {
+    private int readBody(final ChannelBuffer _cb, ByteBuffer readBuffer, int cnt) throws IOException {
 
+        int bodyLen = _cb.header.getLen();
         if (_cb.bodyBuf == null)
-            _cb.bodyBuf = ByteBuffer.allocate(_cb.header.getLen());
+            _cb.bodyBuf = ByteBuffer.allocate(bodyLen);
 
-        int ret;
-        while ((ret = _sc.read(_cb.bodyBuf)) > 0) {
-        }
+        if (cnt < bodyLen)
+            return cnt;
 
-        if (!_cb.bodyBuf.hasRemaining()) {
-            _cb.body = _cb.bodyBuf.array();
-        } else {
-            if (ret == -1) {
-                throw new P2pException("read-body-eof");
-            }
-        }
+        int origPos = readBuffer.position();
+        int startP = origPos - cnt;
+
+        readBuffer.position(startP);
+
+        byte[] body = new byte[bodyLen];
+        readBuffer.get(body);
+
+        readBuffer.position(origPos);
+
+        _cb.bodyBuf.put(body);
+
+        _cb.body = _cb.bodyBuf.array();
+
+        return cnt - bodyLen;
     }
 
     /**
@@ -529,7 +600,9 @@ public final class P2pMgr implements IP2pMgr {
      * @throws IOException
      *             IOException
      */
-    private void read(final SelectionKey _sk) throws IOException {
+    private int read(final SelectionKey _sk, ByteBuffer readBuffer, int cnt) throws IOException {
+
+        int currCnt = 0;
 
         if (_sk.attachment() == null) {
             throw new P2pException("attachment is null");
@@ -538,7 +611,9 @@ public final class P2pMgr implements IP2pMgr {
 
         // read header
         if (!rb.isHeaderCompleted()) {
-            readHeader((SocketChannel) _sk.channel(), rb);
+            currCnt = readHeader(rb, readBuffer, cnt);
+        } else {
+            currCnt = cnt;
         }
 
         // if(rb.isHeaderCompleted() &&
@@ -549,11 +624,11 @@ public final class P2pMgr implements IP2pMgr {
 
         // read body
         if (rb.isHeaderCompleted() && !rb.isBodyCompleted()) {
-            readBody((SocketChannel) _sk.channel(), rb);
+            currCnt = readBody(rb, readBuffer, currCnt);
         }
 
         if (!rb.isBodyCompleted())
-            return;
+            return currCnt;
 
         Header h = rb.header;
 
@@ -593,6 +668,8 @@ public final class P2pMgr implements IP2pMgr {
         //
         // break;
         }
+
+        return currCnt;
 
     }
 

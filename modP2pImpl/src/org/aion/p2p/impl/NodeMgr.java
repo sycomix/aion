@@ -40,8 +40,10 @@ import javax.xml.stream.*;
 
 public class NodeMgr implements INodeMgr {
 
-    private final static int TIMEOUT_ACTIVE_NODES = 30000;
+    private final static int TIMEOUT_ACTIVE_NODES = 60000;
+    
     private final static int TIMEOUT_INBOUND_NODES = 10000;
+    
     private static final String BASE_PATH = System.getProperty("user.dir");
     private static final String PEER_LIST_FILE_PATH = BASE_PATH + "/config/peers.xml";
 
