@@ -25,6 +25,7 @@
 package org.aion.zero.impl.blockchain;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -128,10 +129,35 @@ public class AionImpl implements IAionChain {
         broadcastTransactions(Collections.singletonList(transaction));
     }
 
-    public void broadcastTransactions(List<AionTransaction> transaction) {
-        A0TxTask txTask = new A0TxTask(transaction, this.aionHub.getP2pMgr());
+    // broad cast related variables
 
-        TxBroadcaster.getInstance().submitTransaction(txTask);
+    private List<AionTransaction> broadcastCache = new ArrayList<>();
+    private static final long BROADCAST_INTERVAL = 1000;
+    private long broadcastTs = 0;
+
+    public void broadcastTransactions(List<AionTransaction> txs) {
+
+        long currTs = System.currentTimeMillis();
+
+        synchronized (broadcastCache) {
+
+            if ((currTs - broadcastTs) > BROADCAST_INTERVAL) {
+                broadcastTs = currTs;
+
+                broadcastCache.addAll(txs);
+
+                A0TxTask txTask = new A0TxTask(broadcastCache, this.aionHub.getP2pMgr());
+
+                TxBroadcaster.getInstance().submitTransaction(txTask);
+
+                broadcastCache.clear();
+
+            } else {
+
+                broadcastCache.addAll(txs);
+            }
+        }
+
     }
 
     public long estimateTxNrg(AionTransaction tx, IAionBlock block) {

@@ -130,7 +130,7 @@ public final class P2pMgr implements IP2pMgr {
                 // selectorLock.lock();
                 Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
 
-                while (keys.hasNext()) {
+                while (keys.hasNext() && (num-- > 0)) {
 
                     final SelectionKey sk = keys.next();
                     keys.remove();
@@ -158,6 +158,9 @@ public final class P2pMgr implements IP2pMgr {
                                 continue;
                             }
 
+                            int assertBufRemain = chanBuf.buffRemain;
+                            int assertTotalCnt = cnt;
+
                             int prevCnt = cnt + chanBuf.buffRemain;
 
                             do {
@@ -172,6 +175,7 @@ public final class P2pMgr implements IP2pMgr {
 
                             // check if really read data.
                             if (cnt > prevCnt) {
+                                chanBuf.buffRemain = 0;
                                 throw new P2pException(
                                         "IO read overflow!  suppose read:" + prevCnt + " real left:" + cnt);
                             }
@@ -186,7 +190,8 @@ public final class P2pMgr implements IP2pMgr {
                                 if (remain < 128 * 1024) {
 
                                     if (showLog)
-                                        System.out.println(" NIO new buffer! , size = " + cnt
+                                        System.out.println(" NIO new buffer! , size = " + cnt + " originTotal_read:"
+                                                + assertTotalCnt + " orig_remain:" + assertBufRemain
                                                 + " __________ buf remain:" + chanBuf.readBuf.remaining() + " limit:"
                                                 + chanBuf.readBuf.limit());
 
@@ -229,7 +234,7 @@ public final class P2pMgr implements IP2pMgr {
 
                             closeSocket((SocketChannel) sk.channel());
                             chanBuf.isClosed.set(true);
-                            chanBuf.readBuf.position(0);
+                            chanBuf.readBuf.rewind();
 
                         } catch (ClosedChannelException e) {
                             if (showLog) {
@@ -615,7 +620,7 @@ public final class P2pMgr implements IP2pMgr {
         readBuffer.position(startP);
 
         _cb.readBody(readBuffer);
-        
+
         readBuffer.position(origPos);
 
         return cnt - bodyLen;

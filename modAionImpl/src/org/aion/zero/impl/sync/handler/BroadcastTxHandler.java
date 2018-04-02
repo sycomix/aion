@@ -65,6 +65,10 @@ public final class BroadcastTxHandler extends Handler {
     private static final int Tx_CACHE_SIZE = 8192;
     private final HashSet<ByteArrayWrapper> txCache = new HashSet<>(Tx_CACHE_SIZE);
 
+    private List<AionTransaction> prePending = new ArrayList<>();
+    private long prePendingTs = 0;
+    private long PRE_PENDING_INTERVAL = 1000;
+
     public BroadcastTxHandler(final Logger _log, final IPendingStateInternal _pendingState, final IP2pMgr _p2pMgr) {
         super(Ver.V0, Ctrl.SYNC, Act.BROADCAST_TX);
         this.log = _log;
@@ -84,7 +88,19 @@ public final class BroadcastTxHandler extends Handler {
 
         List<AionTransaction> txs = castRawTx(broadCastTx);
 
-        pendingState.addPendingTransactions(txs);
+        prePending.addAll(txs);
+
+        long currTs = System.currentTimeMillis();
+
+        if ((currTs - prePendingTs) > PRE_PENDING_INTERVAL) {
+
+            synchronized (prePending) {
+                prePendingTs = currTs;
+                pendingState.addPendingTransactions(prePending);
+                prePending.clear();
+            }
+
+        }
     }
 
     private List<AionTransaction> castRawTx(List<byte[]> broadCastTx) {
@@ -99,14 +115,18 @@ public final class BroadcastTxHandler extends Handler {
                 if (txCache.contains(baw)) {
                     // check cache bountry, oversize then shrink.
                     if (txCache.size() > Tx_CACHE_SIZE) {
-                        txCache.clear();
+                        synchronized (txCache) {
+                            txCache.clear();
+                        }
                     }
+                }
 
-                } else {
+                else {
                     if (TXValidator.isValid(tx)) {
                         rtn.add(tx);
                     }
                 }
+
             } catch (Exception e) {
                 // do nothing, invalid transaction from bad peer
             }
