@@ -306,6 +306,9 @@ public final class P2pMgr implements IP2pMgr {
                     break;
                 }
 
+                if (node == null) {
+                    node = nodeMgr.getAllNode(mo.nid);
+                }
                 if (node != null) {
                     SelectionKey sk = node.getChannel().keyFor(selector);
 

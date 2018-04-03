@@ -219,6 +219,10 @@ public class NodeMgr implements INodeMgr {
         return activeNodes.get(k);
     }
 
+    Node getAllNode(int k) {
+        return allNodes.get(k);
+    }
+
     Node getInboundNode(int k) {
         return inboundNodes.get(k);
     }
