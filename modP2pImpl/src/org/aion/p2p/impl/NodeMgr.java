@@ -41,9 +41,9 @@ import javax.xml.stream.*;
 public class NodeMgr implements INodeMgr {
 
     private final static int TIMEOUT_ACTIVE_NODES = 60000;
-    
+
     private final static int TIMEOUT_INBOUND_NODES = 10000;
-    
+
     private static final String BASE_PATH = System.getProperty("user.dir");
     private static final String PEER_LIST_FILE_PATH = BASE_PATH + "/config/peers.xml";
 
@@ -75,9 +75,10 @@ public class NodeMgr implements INodeMgr {
     }
 
     private final static char[] hexArray = "0123456789abcdef".toCharArray();
+
     private static String bytesToHex(byte[] bytes) {
         char[] hexChars = new char[bytes.length * 2];
-        for ( int j = 0; j < bytes.length; j++ ) {
+        for (int j = 0; j < bytes.length; j++) {
             int v = bytes[j] & 0xFF;
             hexChars[j * 2] = hexArray[v >>> 4];
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
@@ -87,20 +88,20 @@ public class NodeMgr implements INodeMgr {
 
     /**
      *
-     * @param selfShortId String
+     * @param selfShortId
+     *            String
      */
     public String dumpNodeInfo(String selfShortId) {
         StringBuilder sb = new StringBuilder();
         sb.append("\n");
-        sb.append(String.format("================================================================== p2p-status-%6s ==================================================================\n", selfShortId));
-        sb.append(String.format("temp[%3d] inbound[%3d] outbound[%3d] active[%3d]                            s - seed node, td - total difficulty, # - block number, bv - binary version\n",
-            tempNodesSize(),
-            inboundNodes.size(),
-            outboundNodes.size(),
-            activeNodes.size()
-        ));
+        sb.append(String.format(
+                "================================================================== p2p-status-%6s ==================================================================\n",
+                selfShortId));
+        sb.append(String.format(
+                "temp[%3d] inbound[%3d] outbound[%3d] active[%3d]                            s - seed node, td - total difficulty, # - block number, bv - binary version\n",
+                tempNodesSize(), inboundNodes.size(), outboundNodes.size(), activeNodes.size()));
         List<Node> sorted = new ArrayList<>(activeNodes.values());
-        if(sorted.size() > 0){
+        if (sorted.size() > 0) {
             sb.append("\n          s"); // id & seed
             sb.append("               td");
             sb.append("          #");
@@ -109,10 +110,11 @@ public class NodeMgr implements INodeMgr {
             sb.append("  port");
             sb.append("     conn");
             sb.append("              bv\n");
-            sb.append("-------------------------------------------------------------------------------------------------------------------------------------------------------\n");
+            sb.append(
+                    "-------------------------------------------------------------------------------------------------------------------------------------------------------\n");
             sorted.sort((n1, n2) -> {
                 int tdCompare = n2.getTotalDifficulty().compareTo(n1.getTotalDifficulty());
-                if(tdCompare == 0) {
+                if (tdCompare == 0) {
                     Long n2Bn = n2.getBestBlockNumber();
                     Long n1Bn = n1.getBestBlockNumber();
                     return n2Bn.compareTo(n1Bn);
@@ -120,21 +122,13 @@ public class NodeMgr implements INodeMgr {
                     return tdCompare;
             });
             for (Node n : sorted) {
-                try{
-                    sb.append(
-                        String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s\n",
-                            n.getIdShort(),
-                            n.getIfFromBootList() ? 'y' : ' ',
-                            n.getTotalDifficulty().toString(10),
+                try {
+                    sb.append(String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s\n", n.getIdShort(),
+                            n.getIfFromBootList() ? 'y' : ' ', n.getTotalDifficulty().toString(10),
                             n.getBestBlockNumber(),
-                            n.getBestBlockHash() == null ? "" : bytesToHex(n.getBestBlockHash()),
-                            n.getIpStr(),
-                            n.getPort(),
-                            n.getConnection(),
-                            n.getBinaryVersion()
-                        )
-                    );
-                } catch(Exception ex){
+                            n.getBestBlockHash() == null ? "" : bytesToHex(n.getBestBlockHash()), n.getIpStr(),
+                            n.getPort(), n.getConnection(), n.getBinaryVersion()));
+                } catch (Exception ex) {
                     ex.printStackTrace();
                 }
             }
@@ -171,7 +165,8 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _n Node
+     * @param _n
+     *            Node
      */
     void tempNodesAdd(final Node _n) {
         if (!tempNodes.contains(_n)) {
@@ -181,9 +176,10 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _ip String
+     * @param _ip
+     *            String
      */
-    void seedIpAdd(String _ip){
+    void seedIpAdd(String _ip) {
         this.seedIps.add(_ip);
     }
 
@@ -207,7 +203,7 @@ public class NodeMgr implements INodeMgr {
     /**
      * for test
      */
-    void clearTempNodes(){
+    void clearTempNodes() {
         this.tempNodes.clear();
     }
 
@@ -225,6 +221,10 @@ public class NodeMgr implements INodeMgr {
 
     Node getInboundNode(int k) {
         return inboundNodes.get(k);
+    }
+
+    Node getOutboundNode(int k) {
+        return outboundNodes.get(k);
     }
 
     Map<Integer, Node> getNodes() {
@@ -286,9 +286,12 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _nodeIdHash int
-     * @param _shortId String
-     * @param _p2pMgr P2pMgr
+     * @param _nodeIdHash
+     *            int
+     * @param _shortId
+     *            String
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void moveOutboundToActive(int _nodeIdHash, String _shortId, final P2pMgr _p2pMgr) {
         Node node = outboundNodes.remove(_nodeIdHash);
@@ -305,8 +308,10 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _channelHashCode int
-     * @param _p2pMgr P2pMgr
+     * @param _channelHashCode
+     *            int
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void moveInboundToActive(int _channelHashCode, final P2pMgr _p2pMgr) {
         Node node = inboundNodes.remove(_channelHashCode);
@@ -369,7 +374,8 @@ public class NodeMgr implements INodeMgr {
     }
 
     /**
-     * @param _p2pMgr P2pMgr
+     * @param _p2pMgr
+     *            P2pMgr
      */
     void shutdown(final P2pMgr _p2pMgr) {
         try {
@@ -384,7 +390,7 @@ public class NodeMgr implements INodeMgr {
         }
     }
 
-    void persistNodes(){
+    void persistNodes() {
         XMLOutputFactory output = XMLOutputFactory.newInstance();
         output.setProperty("escapeCharacters", false);
         XMLStreamWriter sw = null;
