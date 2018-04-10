@@ -38,6 +38,10 @@ public interface INode {
      * @return byte[]
      */
     byte[] getId();
+    
+    
+    // get channel id.
+    int getCid();
 
     /**
      * @return int

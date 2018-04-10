@@ -62,7 +62,7 @@ public class TaskWrite implements Runnable {
 	private void clearChannelBuffer() {
 		channelBuffer.refreshHeader();
 		channelBuffer.refreshBody();
-		p2pMgr.removeActive(channelBuffer.nodeIdHash);
+		p2pMgr.removeActive(channelBuffer.cid);
 	}
 
 	@Override

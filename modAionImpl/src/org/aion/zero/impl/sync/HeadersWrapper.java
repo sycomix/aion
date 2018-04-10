@@ -38,7 +38,7 @@ import java.util.List;
  */
 final class HeadersWrapper {
 
-    private int nodeIdHash;
+    private int cid;
 
     private String displayId;
 
@@ -52,7 +52,7 @@ final class HeadersWrapper {
      * @param _headers List
      */
     HeadersWrapper(int _nodeIdHash, String _displayId, final List<A0BlockHeader> _headers){
-        this.nodeIdHash = _nodeIdHash;
+        this.cid = _nodeIdHash;
         this.displayId = _displayId;
         this.headers = _headers;
         this.timestamp = System.currentTimeMillis();
@@ -62,7 +62,7 @@ final class HeadersWrapper {
      * @return int - node id hash
      */
     int getNodeIdHash(){
-        return this.nodeIdHash;
+        return this.cid;
     }
 
     /**

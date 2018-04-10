@@ -43,7 +43,7 @@ class ChannelBuffer {
 
 	int buffRemain = 0;
 
-	int nodeIdHash = 0;
+	int cid = 0;
 
 	Header header = null;
 
