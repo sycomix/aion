@@ -40,6 +40,7 @@ class ChannelBuffer {
 																	// buffer.
 
 	ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
+
 	int buffRemain = 0;
 
 	int nodeIdHash = 0;

@@ -74,6 +74,7 @@ final class TaskGetHeaders implements Runnable {
 
     @Override
     public void run() {
+
         // get all active nodes
         Collection<INode> nodes = this.p2p.getActiveNodes().values();
 

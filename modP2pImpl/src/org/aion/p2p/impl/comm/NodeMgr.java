@@ -50,7 +50,9 @@ public class NodeMgr implements INodeMgr {
 	private final Map<Integer, Node> allNodes = new ConcurrentHashMap<>();
 	private final BlockingQueue<Node> tempNodes = new LinkedBlockingQueue<>();
 	private final Map<Integer, Node> outboundNodes = new ConcurrentHashMap<>();
+
 	private final Map<Integer, Node> inboundNodes = new ConcurrentHashMap<>();
+
 	private final Map<Integer, Node> activeNodes = new ConcurrentHashMap<>();
 
 	// private volatile INodeObserver observer;
@@ -236,6 +238,8 @@ public class NodeMgr implements INodeMgr {
 		return inboundNodes.get(k);
 	}
 
+
+
 	public Node getOutboundNode(int k) {
 		return outboundNodes.get(k);
 	}
@@ -244,8 +248,31 @@ public class NodeMgr implements INodeMgr {
 		return allNodes;
 	}
 
+	List<Node> allStmNodes = new ArrayList<>(128);
+
 	public Node allocNode(String ip, int p0, int p1) {
-		return new Node(ip, p0, p1);
+		Node n =new Node(ip, p0, p1);
+		allStmNodes.add(n);
+		return n;
+	}
+
+	public Node getStmNode(int channelIdHash, int st){
+		for( Node n : allStmNodes){
+			if( n.st.stat == st && n.getChannel().hashCode() == channelIdHash){
+				return n;
+			}
+		}
+		return null;
+	}
+
+	public List<Node> getStmNodeHS(){
+		List<Node> ns = new ArrayList<>();
+		for( Node n : allStmNodes){
+			if( n.st.stat == NodeStm.HS){
+				ns.add(n);
+			}
+		}
+		return ns;
 	}
 
 	public List<Node> getActiveNodesList() {
@@ -309,7 +336,10 @@ public class NodeMgr implements INodeMgr {
 	public void moveOutboundToActive(int _nodeIdHash, String _shortId, final IP2pMgr _p2pMgr) {
 		Node node = outboundNodes.remove(_nodeIdHash);
 		if (node != null) {
+			node.st.setStatOr(NodeStm.ACTIVE);
+
 			node.setConnection("outbound");
+
 			INode previous = activeNodes.put(_nodeIdHash, node);
 			if (previous != null)
 				_p2pMgr.closeSocket(((Node) previous).getChannel());

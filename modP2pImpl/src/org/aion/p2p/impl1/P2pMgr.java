@@ -31,6 +31,7 @@ import org.aion.p2p.impl.TaskUPnPManager;
 import org.aion.p2p.impl.comm.Act;
 import org.aion.p2p.impl.comm.Node;
 import org.aion.p2p.impl.comm.NodeMgr;
+import org.aion.p2p.impl.comm.NodeStm;
 import org.aion.p2p.impl.zero.msg.*;
 import org.apache.commons.collections4.map.LRUMap;
 
@@ -44,8 +45,6 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 // import org.aion.p2p.impl.one.msg.Hello;
 
@@ -62,7 +61,6 @@ public final class P2pMgr implements IP2pMgr {
 
 	private final static int TIMEOUT_OUTBOUND_CONNECT = 10000;
 
-	// private final static int TIMEOUT_OUTBOUND_NODES = 10000;
 	private final static int TIMEOUT_OUTBOUND_NODES = 10000;
 
 	private final static int PERIOD_UPNP_PORT_MAPPING = 3600000;
@@ -74,7 +72,7 @@ public final class P2pMgr implements IP2pMgr {
 
 	private final boolean syncSeedsOnly;
 	private final boolean showStatus;
-	final boolean showLog;
+	private final boolean showLog;
 	private final boolean printReport;
 	private final String reportFolder;
 	private final int selfNetId;
@@ -92,7 +90,6 @@ public final class P2pMgr implements IP2pMgr {
 	private NodeMgr nodeMgr = new NodeMgr();
 	private ServerSocketChannel tcpServer;
 	private Selector selector;
-	private Lock selectorLock = new ReentrantLock();
 
 	private ScheduledThreadPoolExecutor scheduledWorkers;
 
@@ -171,7 +168,6 @@ public final class P2pMgr implements IP2pMgr {
 					continue;
 				}
 
-				// selectorLock.lock();
 				Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
 
 				while (keys.hasNext() && (num-- > 0)) {
@@ -300,7 +296,6 @@ public final class P2pMgr implements IP2pMgr {
 						}
 					}
 				}
-				// selectorLock.unlock();
 			}
 			if (showLog)
 				System.out.println("<p2p-pi shutdown>");
@@ -321,7 +316,8 @@ public final class P2pMgr implements IP2pMgr {
 						node = nodeMgr.getActiveNode(mo.nid);
 						break;
 					case INBOUND:
-						node = nodeMgr.getInboundNode(mo.nid);
+						//node = nodeMgr.getInboundNode(mo.nid);
+                        nodeMgr.getStmNode(mo.nid, NodeStm.ACCEPTED);
 						break;
 					case OUTBOUND:
 						node = nodeMgr.getOutboundNode(mo.nid);
@@ -465,7 +461,7 @@ public final class P2pMgr implements IP2pMgr {
 						configChannel(channel);
 
 						if (channel.finishConnect() && channel.isConnected()) {
-							// selectorLock.lock();
+
 							SelectionKey sk = channel.register(selector, SelectionKey.OP_READ);
 							ChannelBuffer rb = new ChannelBuffer();
 							rb.nodeIdHash = nodeIdHash;
@@ -474,8 +470,11 @@ public final class P2pMgr implements IP2pMgr {
 							node.setChannel(channel);
 							node.setPortConnected(channel.socket().getLocalPort());
 
+                            node.st.setStat( NodeStm.CONNECTTED) ;
+                            node.st.setStatOr( NodeStm.HS) ;
+
 							nodeMgr.addOutboundNode(node);
-							allNid.put(nodeIdHash, node);
+							allNid.put(channel.hashCode(), node);
 							// selectorLock.unlock();
 
 							// fire extended handshake request first
@@ -518,7 +517,7 @@ public final class P2pMgr implements IP2pMgr {
 		}
 	}
 
-	private final class TaskClear implements Runnable {
+	private final class TaskGuard implements Runnable {
 		@Override
 		public void run() {
 			Thread.currentThread().setName("p2p-clr");
@@ -526,41 +525,42 @@ public final class P2pMgr implements IP2pMgr {
 				try {
 					Thread.sleep(PERIOD_CLEAR);
 
-					// selectorLock.lock();
-					nodeMgr.rmTimeOutInbound(P2pMgr.this);
-					// selectorLock.unlock();
+					// reconnect node stuck during handshake.
+					List<Node> ns = nodeMgr.getStmNodeHS();
+					for( Node n :ns){
+					    P2pMgr.this.sendMsgQue.add(new MsgOut( n.getChannel().hashCode(), cachedReqHandshake1, Dest.OUTBOUND));
+                    }
 
-					// clean up temp nodes list if metric failed.
-					nodeMgr.rmMetricFailedNodes();
 
-					Iterator outboundIt = nodeMgr.getOutboundNodes().keySet().iterator();
-					while (outboundIt.hasNext()) {
-
-						Object obj = outboundIt.next();
-
-						if (obj == null)
-							continue;
-
-						int nodeIdHash = (int) obj;
-						Node node = nodeMgr.getOutboundNodes().get(nodeIdHash);
-
-						if (node == null)
-							continue;
-
-						if (System.currentTimeMillis() - node.getTimestamp() > TIMEOUT_OUTBOUND_NODES) {
-							// selectorLock.lock();
-							closeSocket(node.getChannel());
-							// selectorLock.unlock();
-							outboundIt.remove();
-
-							if (showLog)
-								System.out.println("<p2p-clear outbound-timeout>");
-						}
-					}
-
-					// selectorLock.lock();
-					nodeMgr.rmTimeOutActives(P2pMgr.this);
-					// selectorLock.unlock();
+//					nodeMgr.rmTimeOutInbound(P2pMgr.this);
+//
+//					// clean up temp nodes list if metric failed.
+//					nodeMgr.rmMetricFailedNodes();
+//
+//					Iterator outboundIt = nodeMgr.getOutboundNodes().keySet().iterator();
+//					while (outboundIt.hasNext()) {
+//
+//						Object obj = outboundIt.next();
+//
+//						if (obj == null)
+//							continue;
+//
+//						int nodeIdHash = (int) obj;
+//						Node node = nodeMgr.getOutboundNodes().get(nodeIdHash);
+//
+//						if (node == null)
+//							continue;
+//
+//						if (System.currentTimeMillis() - node.getTimestamp() > TIMEOUT_OUTBOUND_NODES) {
+//							closeSocket(node.getChannel());
+//							outboundIt.remove();
+//
+//							if (showLog)
+//								System.out.println("<p2p-clear outbound-timeout>");
+//						}
+//					}
+//
+//					nodeMgr.rmTimeOutActives(P2pMgr.this);
 
 				} catch (Exception e) {
 				}
@@ -690,7 +690,10 @@ public final class P2pMgr implements IP2pMgr {
 			Node node = nodeMgr.allocNode(ip, 0, port);
 
 			node.setChannel(channel);
-			nodeMgr.inboundNodeAdd(node);
+			node.st.setStat( NodeStm.ACCEPTED) ;
+            node.st.setStatOr( NodeStm.HS) ;
+
+			//nodeMgr.inboundNodeAdd(node);
 
 			allNid.put(node.getChannel().hashCode(), node);
 
@@ -874,7 +877,10 @@ public final class P2pMgr implements IP2pMgr {
 	 */
 	private void handleReqHandshake(final ChannelBuffer _buffer, int _channelHash, final byte[] _nodeId, int _netId,
 			int _port, final byte[] _revision) {
-		Node node = nodeMgr.getInboundNode(_channelHash);
+		//Node node = nodeMgr.getInboundNode(_channelHash);
+
+        Node node = nodeMgr.getStmNode(_channelHash, NodeStm.ACCEPTED);
+
 		if (node != null) {
 			if (handshakeRuleCheck(_netId)) {
 				_buffer.nodeIdHash = Arrays.hashCode(_nodeId);
@@ -903,6 +909,11 @@ public final class P2pMgr implements IP2pMgr {
 
 					sendMsgQue.offer(new MsgOut(node.getChannel().hashCode(), cachedResHandshake, Dest.INBOUND));
 				}
+
+                node.st.setStat( NodeStm.HS_DONE);
+
+                node.st.setStat( NodeStm.ACTIVE);
+
 				nodeMgr.moveInboundToActive(_channelHash, this);
 			}
 		}
@@ -913,6 +924,11 @@ public final class P2pMgr implements IP2pMgr {
 		if (node != null) {
 			node.refreshTimestamp();
 			node.setBinaryVersion(_binaryVersion);
+
+			node.st.setStat( NodeStm.HS_DONE);
+
+            node.st.setStat( NodeStm.ACTIVE);
+
 			nodeMgr.moveOutboundToActive(node.getIdHash(), node.getIdShort(), this);
 		}
 	}
@@ -1016,17 +1032,20 @@ public final class P2pMgr implements IP2pMgr {
 	 *            byte[]
 	 */
 	private void handleKernelMsg(int _nodeIdHash, int _route, final byte[] _msgBytes) {
-		Node node = nodeMgr.getActiveNode(_nodeIdHash);
+		//Node node = nodeMgr.getActiveNode(_nodeIdHash);
+
+        Node node =nodeMgr.getStmNode(_nodeIdHash, NodeStm.ACTIVE);
 
 		// fail back to inbound
-		if (node == null) {
-			node = nodeMgr.getInboundNode(_nodeIdHash);
-		}
+//		if (node == null) {
+//			//node = nodeMgr.getInboundNode(_nodeIdHash);
+//            nodeMgr.getStmNode(_nodeIdHash, NodeStm.ACTIVE);
+//		}
 
 		// fail back to outbound
-		if (node == null) {
-			node = nodeMgr.getOutboundNode(_nodeIdHash);
-		}
+//		if (node == null) {
+//			node = nodeMgr.getOutboundNode(_nodeIdHash);
+//		}
 
 		if (node != null) {
 			int nid = node.getIdHash();
@@ -1106,7 +1125,7 @@ public final class P2pMgr implements IP2pMgr {
 			// TaskPersistNodes(nodeMgr), 30000, PERIOD_PERSIST_NODES,
 			// TimeUnit.MILLISECONDS);
 
-			Thread thrdClear = new Thread(new TaskClear(), "p2p-clear");
+			Thread thrdClear = new Thread(new TaskGuard(), "p2p-clear");
 			thrdClear.setPriority(Thread.NORM_PRIORITY);
 			thrdClear.start();
 

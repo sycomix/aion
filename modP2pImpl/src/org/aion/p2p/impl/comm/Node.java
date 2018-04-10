@@ -70,6 +70,8 @@ public final class Node implements INode {
 
 	private int fullHash = -1;
 
+	public NodeStm st = new NodeStm();
+
 	/**
 	 * for display only
 	 */
