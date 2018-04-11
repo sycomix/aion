@@ -5,7 +5,7 @@ import org.aion.p2p.IP2pMgr;
 
 public interface INodeMgr {
 
-	void updateAllNodesInfo(INode _n);
+	//void updateAllNodesInfo(INode _n);
 
 	// void registerNodeObserver(INodeObserver observer);
 

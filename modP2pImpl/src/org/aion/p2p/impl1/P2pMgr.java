@@ -89,7 +89,7 @@ public final class P2pMgr implements IP2pMgr {
 	private final Map<Integer, List<Handler>> handlers = new ConcurrentHashMap<>();
 	private final Set<Short> versions = new HashSet<>();
 
-	private NodeMgr nodeMgr = new NodeMgr();
+	private NodeMgr nodeMgr;
 	private ServerSocketChannel tcpServer;
 	private Selector selector;
 
@@ -601,18 +601,17 @@ public final class P2pMgr implements IP2pMgr {
 				}
 
 				Node node;
-				try {
-					node = nodeMgr.tempNodesTake();
-					if (node.getIfFromBootList())
-						nodeMgr.tempNodesAdd(node);
-					if (node.peerMetric.shouldNotConn()) {
-						continue;
-					}
-				} catch (InterruptedException e) {
-					if (showLog)
-						System.out.println("<p2p-tcp-interrupted>");
-					return;
-				}
+
+				node = nodeMgr.getInitNode();
+
+				if (node == null)
+					continue;
+				// if (node.getIfFromBootList())
+				// nodeMgr.tempNodesAdd(node);
+				// if (node.peerMetric.shouldNotConn()) {
+				// continue;
+				// }
+
 				// int nodeIdHash = node.getIdHash();
 				int cid = node.getCid();
 				// if (!nodeMgr.getOutboundNodes().containsKey(nodeIdHash) &&
@@ -636,8 +635,7 @@ public final class P2pMgr implements IP2pMgr {
 							node.setChannel(channel);
 							node.setPortConnected(channel.socket().getLocalPort());
 
-							node.st.setStat(NodeStm.CONNECTTED);
-							node.st.setStatOr(NodeStm.HS);
+							node.st.setConnected();
 
 							rb.cid = node.getCid();
 							sk.attach(rb);
@@ -700,6 +698,9 @@ public final class P2pMgr implements IP2pMgr {
 					for (Node n : ns) {
 						P2pMgr.this.sendMsgQue.add(new MsgOut(n.getCid(), cachedReqHandshake1, Dest.OUTBOUND));
 					}
+
+					// remove closed channel.
+					nodeMgr.removeClosed();
 
 					// nodeMgr.rmTimeOutInbound(P2pMgr.this);
 					//
@@ -778,10 +779,12 @@ public final class P2pMgr implements IP2pMgr {
 		this.reportFolder = _reportFolder;
 		this.errTolerance = _errorTolerance;
 
+		nodeMgr = new NodeMgr(selfNodeIdHash);
+
 		for (String _bootNode : _bootNodes) {
 			Node node = Node.parseP2p(_bootNode);
-			if (node != null && validateNode(node)) {
-				nodeMgr.tempNodesAdd(node);
+			if (node != null && this.nodeMgr.validateNode(node, this.selfNodeIdHash, this.selfIp, this.selfPort)) {
+				nodeMgr.addStmNodeForBoot(node);
 				nodeMgr.seedIpAdd(node.getIpStr());
 			}
 		}
@@ -798,28 +801,6 @@ public final class P2pMgr implements IP2pMgr {
 	 *            Node
 	 * @return boolean
 	 */
-	private boolean validateNode(final Node _node) {
-		boolean notNull = _node != null;
-		// filter self
-		boolean notSelfId = _node.getIdHash() != this.selfNodeIdHash;
-		boolean notSameIpOrPort = !(Arrays.equals(selfIp, _node.getIp()) && selfPort == _node.getPort());
-
-		// filter already active.
-		// boolean notActive = !nodeMgr.hasActiveNode(_node.getIdHash());
-
-		boolean notActive = !nodeMgr.hasActiveNode(_node.getCid());
-
-		// filter out conntected.
-		boolean notOutbound = !(_node.st.stat == NodeStm.CONNECTTED);
-
-		for (Node n : this.nodeMgr.allStmNodes) {
-			if (n.getIdHash() == _node.getIdHash()) {
-				return false;
-			}
-		}
-
-		return notNull && notSelfId && notSameIpOrPort && notActive && notOutbound;
-	}
 
 	/**
 	 * @param _channel
@@ -875,8 +856,7 @@ public final class P2pMgr implements IP2pMgr {
 			Node node = nodeMgr.allocNode(ip, 0, port);
 
 			node.setChannel(channel);
-			node.st.setStat(NodeStm.ACCEPTED);
-			node.st.setStatOr(NodeStm.HS);
+			node.st.setAccepted();
 
 			ChannelBuffer cb = new ChannelBuffer();
 			cb.cid = node.getCid();
@@ -1184,10 +1164,12 @@ public final class P2pMgr implements IP2pMgr {
 					if (resActiveNodes != null) {
 						List<Node> incomingNodes = resActiveNodes.getNodes();
 						for (Node incomingNode : incomingNodes) {
-							if (nodeMgr.tempNodesSize() >= this.maxTempNodes)
+							if (nodeMgr.allStmNodes.size() >= this.maxTempNodes)
 								return;
-							if (validateNode(incomingNode))
-								nodeMgr.tempNodesAdd(incomingNode);
+							if (this.nodeMgr.validateNode(incomingNode, this.selfNodeIdHash, this.selfIp,
+									this.selfPort)) {
+								nodeMgr.addStmNode(incomingNode);
+							}
 						}
 					}
 				}
@@ -1332,9 +1314,9 @@ public final class P2pMgr implements IP2pMgr {
 	// this.nodeMgr.clearTempNodes();
 	// }
 
-	public int getTempNodesCount() {
-		return nodeMgr.tempNodesSize();
-	}
+	// public int getTempNodesCount() {
+	// return nodeMgr.tempNodesSize();
+	// }
 
 	@Override
 	public void register(final List<Handler> _cbs) {
