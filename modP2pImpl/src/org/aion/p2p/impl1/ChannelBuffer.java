@@ -36,10 +36,9 @@ import java.util.concurrent.locks.Lock;
  */
 class ChannelBuffer {
 
-	private static final int READ_BUFFER_SIZE = 16 * 1024 * 1024; // 512K read
-																	// buffer.
-
-	ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
+	private static final int READ_BUFFER_SIZE = 512 * 1024; 
+	static public ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
+	
 	int buffRemain = 0;
 
 	int nodeIdHash = 0;
@@ -67,7 +66,7 @@ class ChannelBuffer {
 		try {
 			header = Header.decode(bsHead);
 		} catch (Exception e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 	}
 

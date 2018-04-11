@@ -47,6 +47,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import java.util.concurrent.ArrayBlockingQueue;
+
 // import org.aion.p2p.impl.one.msg.Hello;
 
 /**
@@ -102,6 +104,20 @@ public final class P2pMgr implements IP2pMgr {
 
 	private int errTolerance;
 
+	private ConcurrentHashMap<SocketChannel, Queue<MsgParse>> nioBuffer = new ConcurrentHashMap<>();
+
+	private static class MsgParse {
+
+		public MsgParse(byte[] bs, ChannelBuffer _cb, int _cid) {
+			fs = bs;
+			cb = _cb;
+			cid = _cid;
+		}
+
+		byte[] fs;
+		ChannelBuffer cb;
+		int cid;
+	}
 
 	enum Dest {
 		INBOUND, OUTBOUND, ACTIVE;
@@ -133,9 +149,9 @@ public final class P2pMgr implements IP2pMgr {
 		byte[] msg;
 	}
 
-	private LinkedBlockingQueue<MsgOut> sendMsgQue = new LinkedBlockingQueue<>();
+	private ArrayBlockingQueue<MsgOut> sendMsgQue = new ArrayBlockingQueue<>(10240);
 
-	private LinkedBlockingQueue<MsgIn> receiveMsgQue = new LinkedBlockingQueue<>();
+	private ArrayBlockingQueue<MsgIn> receiveMsgQue = new ArrayBlockingQueue<>(10240);
 
 	private AtomicBoolean start = new AtomicBoolean(true);
 
@@ -148,8 +164,6 @@ public final class P2pMgr implements IP2pMgr {
 	private final class TaskInbound implements Runnable {
 		@Override
 		public void run() {
-
-			// read buffer pre-alloc. 1M max.
 
 			while (start.get()) {
 
@@ -165,7 +179,7 @@ public final class P2pMgr implements IP2pMgr {
 
 				if (num == 0) {
 					try {
-						Thread.sleep(0, 10);
+						Thread.sleep(0, 1);
 					} catch (Exception e) {
 					}
 					continue;
@@ -179,6 +193,8 @@ public final class P2pMgr implements IP2pMgr {
 					final SelectionKey sk = keys.next();
 					keys.remove();
 
+					SocketChannel sc = (SocketChannel) sk.channel();
+
 					if (!sk.isValid())
 						continue;
 
@@ -188,12 +204,13 @@ public final class P2pMgr implements IP2pMgr {
 					if (sk.isReadable()) {
 
 						ChannelBuffer chanBuf = (ChannelBuffer) (sk.attachment());
+						chanBuf.readBuf.rewind();
 						try {
 
 							int ret;
 							int cnt = 0;
 
-							while ((ret = ((SocketChannel) sk.channel()).read(chanBuf.readBuf)) > 0) {
+							while ((ret = sc.read(chanBuf.readBuf)) > 0) {
 								cnt += ret;
 							}
 
@@ -202,59 +219,22 @@ public final class P2pMgr implements IP2pMgr {
 								continue;
 							}
 
-							int assertBufRemain = chanBuf.buffRemain;
-							int assertTotalCnt = cnt;
+							byte[] bb = new byte[chanBuf.readBuf.position()];
 
-							int prevCnt = cnt + chanBuf.buffRemain;
+							chanBuf.readBuf.position(0);
+							chanBuf.readBuf.get(bb);
 
-							do {
-								cnt = read(sk, chanBuf.readBuf, prevCnt);
+							// System.out.println("nio in len:" + bb.length);
 
-								if (prevCnt == cnt) {
-									break;
-								} else
-									prevCnt = cnt;
-
-							} while (cnt > 0);
-
-							// check if really read data.
-							if (cnt > prevCnt) {
-								chanBuf.buffRemain = 0;
-								throw new P2pException(
-										"IO read overflow!  suppose read:" + prevCnt + " real left:" + cnt);
-							}
-
-							chanBuf.buffRemain = cnt;
-
-							if (cnt == 0) {
-								chanBuf.readBuf.rewind();
+							Queue q = nioBuffer.get(sc);
+							if (q == null) {
+								q = new ArrayBlockingQueue<>(16);
+								q.offer(new MsgParse(bb, chanBuf, sk.channel().hashCode()));
+								nioBuffer.put(sc, q);
 							} else {
-								// cycline buffer
-								int remain = chanBuf.readBuf.remaining();
-								if (remain < 128 * 1024) {
-
-//									if (showLog)
-//										System.out.println(" NIO new buffer! , size = " + cnt + " originTotal_read:"
-//												+ assertTotalCnt + " orig_remain:" + assertBufRemain
-//												+ " __________ buf remain:" + chanBuf.readBuf.remaining() + " limit:"
-//												+ chanBuf.readBuf.limit());
-
-									// if still not read buffer , then copy
-									// it
-									// and move it to front. later , this
-									// can
-									// change to ring buffer.
-									int currPos = chanBuf.readBuf.position();
-									if (cnt != 0) {
-										byte[] tmp = new byte[cnt];
-										chanBuf.readBuf.position(currPos - cnt);
-										chanBuf.readBuf.get(tmp);
-										chanBuf.readBuf.rewind();
-										chanBuf.readBuf.put(tmp);
-									}
-
-								}
+								q.offer(new MsgParse(bb, chanBuf, sk.channel().hashCode()));
 							}
+							// chanBuf.readBuf.rewind();
 
 						} catch (NullPointerException e) {
 
@@ -304,6 +284,200 @@ public final class P2pMgr implements IP2pMgr {
 			}
 			if (showLog)
 				System.out.println("<p2p-pi shutdown>");
+		}
+	}
+
+	void inParser() {
+
+		while (true) {
+
+			try {
+				Thread.sleep(10);
+			} catch (Exception e) {
+
+			}
+			ChannelBuffer chanBuf = null;
+			// done.
+			try {
+
+				Set<Map.Entry<SocketChannel, Queue<MsgParse>>> scs = nioBuffer.entrySet();
+
+				WAIT_2: for (Map.Entry<SocketChannel, Queue<MsgParse>> entry : scs) {
+
+					SocketChannel sc = (SocketChannel) entry.getKey();
+
+					if (!sc.isConnected()) {
+						nioBuffer.remove(sc);
+						continue;
+					}
+
+					// Queue<MsgParse> q = nioBuffer.get(sc);
+					Queue<MsgParse> q = entry.getValue();
+
+					MsgParse mp = null;
+
+					// System.out.println("nio parser qeueu len:" + q.size());
+
+					while ((mp = q.peek()) != null) {
+
+						chanBuf = mp.cb;
+
+						if (mp.cb.buffRemain == 0) {
+
+							int cnt = 0;
+							int prevCnt = mp.fs.length;
+
+							do {
+								cnt = read(mp.cid, mp.fs, mp.cb, prevCnt);
+
+								if (prevCnt == cnt) {
+									break;
+								} else
+									prevCnt = cnt;
+
+							} while (cnt > 0);
+
+							// check if really read data.
+							if (cnt > prevCnt) {
+								mp.cb.buffRemain = 0;
+								throw new P2pException(
+										"IO read overflow!  suppose read:" + prevCnt + " real left:" + cnt);
+							}
+
+							if (cnt == 0) {
+								q.remove();
+							}
+
+							// System.out.println("nio parser single block len:" + mp.fs.length + " before
+							// rem:"
+							// + mp.cb.buffRemain + " after rem:" + cnt);
+
+							mp.cb.buffRemain = cnt;
+
+						} else {
+
+							if (q.size() < 2)
+								continue WAIT_2;
+
+							mp = q.poll();
+							MsgParse mp1 = q.peek();
+
+							// System.out
+							// .println("nio parser 2block len:" + mp1.fs.length + " remain:" +
+							// mp.cb.buffRemain);
+
+							if (mp.cb.buffRemain > mp.fs.length) {
+								throw new P2pException("IO parse overflow!  buff len:" + mp.fs.length + " buff rem::"
+										+ mp.cb.buffRemain);
+							}
+
+							int total = mp.cb.buffRemain + mp1.fs.length;
+							ByteBuffer bb = ByteBuffer.allocate(total);
+							try {
+								// bb.put(mp.fs, mp.cb.buffRemain, mp.fs.length - mp.cb.buffRemain);
+								// bb.put(mp.fs, mp.fs.length - mp.cb.buffRemain, mp.cb.buffRemain);
+								bb.put(mp.fs, mp.fs.length - mp.cb.buffRemain, mp.cb.buffRemain);
+
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+
+							try {
+								// bb.put(mp.fs, mp.cb.buffRemain, mp.fs.length - mp.cb.buffRemain);
+								// bb.put(mp.fs, mp.fs.length - mp.cb.buffRemain, mp.cb.buffRemain);
+
+								bb.put(mp1.fs);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+
+							int cnt = 0;
+							int prevCnt = total;
+							do {
+								cnt = read(mp.cid, bb.array(), mp.cb, prevCnt);
+
+								if (prevCnt == cnt) {
+									break;
+								} else
+									prevCnt = cnt;
+
+							} while (cnt > 0);
+
+							// check if really read data.
+							if (cnt > prevCnt) {
+								mp.cb.buffRemain = 0;
+								throw new P2pException(
+										"IO read overflow!  suppose read:" + prevCnt + " real left:" + cnt);
+							}
+
+							// System.out.println("nio parser 2block len:" + mp1.fs.length + " before rem:"
+							// + mp.cb.buffRemain + " after rem:" + cnt);
+
+							mp1.cb.buffRemain = 0;
+
+							if (cnt == 0) {
+								q.remove();
+							} else {
+								// mp1.cb.buffRemain = cnt;
+								// mp1.fs = bb.array();
+
+								byte[] tmp = new byte[cnt];
+								bb.position(bb.capacity() - cnt);
+								bb.get(tmp);
+								// mp1.cb.buffRemain = 0;
+								mp1.fs = tmp;
+
+								// System.out.println("nio parser 2block finished with : array:" + mp1.fs.length
+								// + " rem:"
+								// + mp1.cb.buffRemain);
+							}
+
+						}
+					}
+				}
+
+			} catch (NullPointerException e) {
+
+				if (showLog) {
+					System.out.println("<p2p read-msg-null-exception>");
+				}
+
+				// closeSocket((SocketChannel) sk.channel());
+
+				chanBuf.isClosed.set(true);
+				chanBuf.readBuf.position(0);
+			} catch (P2pException e) {
+
+				if (showLog) {
+					System.out.println("<p2p read-msg-P2p-exception>");
+				}
+
+				// e.printStackTrace();
+
+				// continue;
+
+				// closeSocket((SocketChannel) sk.channel());
+				chanBuf.isClosed.set(true);
+				chanBuf.readBuf.rewind();
+
+			} catch (ClosedChannelException e) {
+				if (showLog) {
+					System.out.println("<p2p readfail-closechannel>");
+				}
+				// closeSocket((SocketChannel) sk.channel());
+
+			} catch (IOException e) {
+
+				if (showLog) {
+					System.out.println("<p2p read-msg-io-exception: " + e.getMessage() + ">");
+				}
+
+				e.printStackTrace();
+
+				// closeSocket((SocketChannel) sk.channel());
+				chanBuf.isClosed.set(true);
+				chanBuf.readBuf.position(0);
+			}
 		}
 	}
 
@@ -380,7 +554,6 @@ public final class P2pMgr implements IP2pMgr {
 					for (Handler hlr : hs) {
 						if (hlr == null)
 							continue;
-
 						try {
 							hlr.receive(mi.nid, mi.nsid, mi.msg);
 						} catch (Exception e) {
@@ -483,7 +656,8 @@ public final class P2pMgr implements IP2pMgr {
 							// node.getIdShort(), channel, cachedReqHandshake1,
 							// rb, P2pMgr.this));
 
-							// if don't sleep a while and direct send handshake, sometime it just failed by
+							// if don't sleep a while and direct send handshake,
+							// sometime it just failed by
 							// without response.
 							try {
 								Thread.sleep(1000);
@@ -644,6 +818,8 @@ public final class P2pMgr implements IP2pMgr {
 	private void configChannel(final SocketChannel _channel) throws IOException {
 		_channel.configureBlocking(false);
 		_channel.socket().setSoTimeout(TIMEOUT_MSG_READ);
+		_channel.socket().setSendBufferSize(204800);
+		_channel.socket().setReceiveBufferSize(204800);
 		// _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 		// _channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 		// _channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
@@ -702,10 +878,12 @@ public final class P2pMgr implements IP2pMgr {
 				System.out.println("<p2p inbound-accept-io-exception>");
 			return;
 		}
+
 	}
 
 	/**
-	 *            SocketChannel
+	 * SocketChannel
+	 * 
 	 * @throws IOException
 	 *             IOException
 	 */
@@ -718,22 +896,23 @@ public final class P2pMgr implements IP2pMgr {
 		if (cnt < Header.LEN)
 			return cnt;
 
-		int origPos = readBuffer.position();
-
-		int startP = origPos - cnt;
-
-		readBuffer.position(startP);
+		// int origPos = readBuffer.position();
+		//
+		// int startP = origPos - cnt;
+		//
+		// readBuffer.position(startP);
 
 		_cb.readHead(readBuffer);
 
-		readBuffer.position(origPos);
+		// readBuffer.position(origPos);
 
 		return cnt - Header.LEN;
 
 	}
 
 	/**
-	 *            SocketChannel
+	 * SocketChannel
+	 * 
 	 * @throws IOException
 	 *             IOException
 	 */
@@ -750,14 +929,14 @@ public final class P2pMgr implements IP2pMgr {
 		if (cnt < bodyLen)
 			return cnt;
 
-		int origPos = readBuffer.position();
-		int startP = origPos - cnt;
+		// int origPos = readBuffer.position();
+		// int startP = origPos - cnt;
 
-		readBuffer.position(startP);
+		// readBuffer.position(startP);
 
 		_cb.readBody(readBuffer);
 
-		readBuffer.position(origPos);
+		// readBuffer.position(origPos);
 
 		return cnt - bodyLen;
 	}
@@ -768,14 +947,11 @@ public final class P2pMgr implements IP2pMgr {
 	 * @throws IOException
 	 *             IOException
 	 */
-	private int read(final SelectionKey _sk, ByteBuffer readBuffer, int cnt) throws IOException {
+	private int read(int cid, byte[] bs, ChannelBuffer rb, int cnt) throws IOException {
+
+		ByteBuffer readBuffer = ByteBuffer.wrap(bs);
 
 		int currCnt = 0;
-
-		if (_sk.attachment() == null) {
-			throw new P2pException("attachment is null");
-		}
-		ChannelBuffer rb = (ChannelBuffer) _sk.attachment();
 
 		// read header
 		if (!rb.isHeaderCompleted()) {
@@ -812,13 +988,11 @@ public final class P2pMgr implements IP2pMgr {
 
 		// print route
 		// System.out.println("read " + ver + "-" + ctrl + "-" + act);
-
-
 		switch (ver) {
 		case Ver.V0:
 			switch (ctrl) {
 			case Ctrl.NET:
-				handleP2pMsg(_sk, act, bodyBytes);
+				handleP2pMsg(cid, rb, act, bodyBytes);
 				break;
 			default:
 				int route = h.getRoute();
@@ -828,15 +1002,6 @@ public final class P2pMgr implements IP2pMgr {
 			}
 			break;
 
-		// testing versioning
-		// case Ver.V1:
-		// if(ctrl == 0 && act == 0){
-		// Hello hello = Hello.decode(bodyBytes);
-		// if(hello != null)
-		// System.out.println("v1 hello msg " + hello.getMsg());
-		// }
-		//
-		// break;
 		}
 
 		return currCnt;
@@ -928,9 +1093,7 @@ public final class P2pMgr implements IP2pMgr {
 	 * @param _msgBytes
 	 *            byte[]
 	 */
-	private void handleP2pMsg(final SelectionKey _sk, byte _act, final byte[] _msgBytes) {
-
-		ChannelBuffer rb = (ChannelBuffer) _sk.attachment();
+	private void handleP2pMsg(final int cid, ChannelBuffer rb, byte _act, final byte[] _msgBytes) {
 
 		switch (_act) {
 
@@ -938,28 +1101,31 @@ public final class P2pMgr implements IP2pMgr {
 			if (_msgBytes.length > ReqHandshake.LEN) {
 				ReqHandshake1 reqHandshake1 = ReqHandshake1.decode(_msgBytes);
 				if (reqHandshake1 != null) {
-					handleReqHandshake(rb, _sk.channel().hashCode(), reqHandshake1.getNodeId(),
-							reqHandshake1.getNetId(), reqHandshake1.getPort(), reqHandshake1.getRevision());
+					handleReqHandshake(rb, cid, reqHandshake1.getNodeId(), reqHandshake1.getNetId(),
+							reqHandshake1.getPort(), reqHandshake1.getRevision());
 				}
 			} else {
 				ReqHandshake reqHandshake = ReqHandshake.decode(_msgBytes);
 				if (reqHandshake != null)
-					handleReqHandshake(rb, _sk.channel().hashCode(), reqHandshake.getNodeId(), reqHandshake.getNetId(),
+					handleReqHandshake(rb, cid, reqHandshake.getNodeId(), reqHandshake.getNetId(),
 							reqHandshake.getPort(), null);
 			}
 
 			break;
 
 		case Act.RES_HANDSHAKE:
+			// System.out.println("receive handshake. nid:" + rb.nodeIdHash);
 			if (rb.nodeIdHash == 0)
 				return;
 
 			if (_msgBytes.length > ResHandshake.LEN) {
+				// System.out.println("receive handshake. nid:" + rb.nodeIdHash + " v1");
 				ResHandshake1 resHandshake1 = ResHandshake1.decode(_msgBytes);
 				if (resHandshake1 != null && resHandshake1.getSuccess())
 					handleResHandshake(rb.nodeIdHash, resHandshake1.getBinaryVersion());
 
 			} else {
+				// System.out.println("receive handshake. nid:" + rb.nodeIdHash + " v0");
 				ResHandshake resHandshake = ResHandshake.decode(_msgBytes);
 				if (resHandshake != null && resHandshake.getSuccess())
 					handleResHandshake(rb.nodeIdHash, "unknown");
@@ -1001,8 +1167,8 @@ public final class P2pMgr implements IP2pMgr {
 			}
 			break;
 		default:
-			if (showLog)
-				System.out.println("<p2p unknown-route act=" + _act + ">");
+//			if (showLog)
+//				System.out.println("<p2p unknown-route act=" + _act + ">");
 			break;
 		}
 	}
@@ -1075,6 +1241,17 @@ public final class P2pMgr implements IP2pMgr {
 				t.start();
 			}
 
+			for (int i = 0; i < 1; i++) {
+				Thread t = new Thread(new Runnable() {
+
+					public void run() {
+						inParser();
+					}
+				}, "p2p-in-parse-" + i);
+
+				t.setPriority(Thread.NORM_PRIORITY);
+				t.start();
+			}
 			if (upnpEnable)
 				scheduledWorkers.scheduleWithFixedDelay(new TaskUPnPManager(selfPort), 1, PERIOD_UPNP_PORT_MAPPING,
 						TimeUnit.MILLISECONDS);
@@ -1228,7 +1405,7 @@ public final class P2pMgr implements IP2pMgr {
 
 	@Override
 	public void errCheck(int nodeIdHashcode, String _displayId) {
-		int cnt = (errCnt.get(nodeIdHashcode) == null ? 1 : (errCnt.get(nodeIdHashcode).intValue() + 1)) ;
+		int cnt = (errCnt.get(nodeIdHashcode) == null ? 1 : (errCnt.get(nodeIdHashcode).intValue() + 1));
 
 		if (cnt > this.errTolerance) {
 			ban(nodeIdHashcode);
