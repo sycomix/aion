@@ -323,7 +323,7 @@ public final class P2pMgr implements IP2pMgr {
 					// if still not found , let's try all nodes.
 					if (node == null) {
 						// node = allNid.get(mo.nid);
-						nodeMgr.getStmNode(mo.nid, NodeStm.ACTIVE);
+						node = nodeMgr.getStmNode(mo.nid, NodeStm.ACTIVE);
 					}
 					if (node != null) {
 						SelectionKey sk = node.getChannel().keyFor(selector);
@@ -517,11 +517,10 @@ public final class P2pMgr implements IP2pMgr {
 					Thread.sleep(PERIOD_CLEAR);
 
 					// reconnect node stuck during handshake.
-					// List<Node> ns = nodeMgr.getStmNodeHS();
-					// for (Node n : ns) {
-					// P2pMgr.this.sendMsgQue.add(new MsgOut(n.getCid(), cachedReqHandshake1,
-					// Dest.OUTBOUND));
-					// }
+					List<Node> ns = nodeMgr.getStmNodeHS();
+					for (Node n : ns) {
+						P2pMgr.this.sendMsgQue.add(new MsgOut(n.getCid(), cachedReqHandshake1, Dest.OUTBOUND));
+					}
 
 					// nodeMgr.rmTimeOutInbound(P2pMgr.this);
 					//
@@ -622,12 +621,23 @@ public final class P2pMgr implements IP2pMgr {
 	 */
 	private boolean validateNode(final Node _node) {
 		boolean notNull = _node != null;
+		// filter self
 		boolean notSelfId = _node.getIdHash() != this.selfNodeIdHash;
 		boolean notSameIpOrPort = !(Arrays.equals(selfIp, _node.getIp()) && selfPort == _node.getPort());
-		boolean notActive = !nodeMgr.hasActiveNode(_node.getIdHash());
-		// boolean notOutbound =
-		// !nodeMgr.getOutboundNodes().containsKey(_node.getIdHash());
+
+		// filter already active.
+		// boolean notActive = !nodeMgr.hasActiveNode(_node.getIdHash());
+
+		boolean notActive = !nodeMgr.hasActiveNode(_node.getCid());
+
+		// filter out conntected.
 		boolean notOutbound = !(_node.st.stat == NodeStm.CONNECTTED);
+
+		for (Node n : this.nodeMgr.allStmNodes) {
+			if (n.getIdHash() == _node.getIdHash()) {
+				return false;
+			}
+		}
 
 		return notNull && notSelfId && notSameIpOrPort && notActive && notOutbound;
 	}
@@ -1052,10 +1062,10 @@ public final class P2pMgr implements IP2pMgr {
 		// }
 
 		if (node != null) {
-			//int nid = node.getIdHash();
-			
+			// int nid = node.getIdHash();
+
 			int nid = node.getCid();
-			
+
 			String nsid = node.getIdShort();
 
 			node.refreshTimestamp();

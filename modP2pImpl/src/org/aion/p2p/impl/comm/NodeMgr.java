@@ -53,7 +53,7 @@ public class NodeMgr implements INodeMgr {
 
 	// private final Map<Integer, Node> outboundNodes = new ConcurrentHashMap<>();
 
-	private final Map<Integer, Node> inboundNodes = new ConcurrentHashMap<>();
+	//private final Map<Integer, Node> inboundNodes = new ConcurrentHashMap<>();
 
 	private final Map<Integer, Node> activeNodes = new ConcurrentHashMap<>();
 
@@ -111,7 +111,7 @@ public class NodeMgr implements INodeMgr {
 				selfShortId));
 		sb.append(String.format(
 				"temp[%3d] inbound[%3d] outbound[%3d] active[%3d]                            s - seed node, td - total difficulty, # - block number, bv - binary version\n",
-				tempNodesSize(), inboundNodes.size(), 0, activeNodes.size()));
+				tempNodesSize(), 0, 0, activeNodes.size()));
 		List<Node> sorted = new ArrayList<>(activeNodes.values());
 		if (sorted.size() > 0) {
 			sb.append("\n          s"); // id & seed
@@ -203,10 +203,10 @@ public class NodeMgr implements INodeMgr {
 		return this.seedIps.contains(_ip);
 	}
 
-	public void inboundNodeAdd(final Node _n) {
-		updateMetric(_n);
-		inboundNodes.put(_n.getChannel().hashCode(), _n);
-	}
+//	public void inboundNodeAdd(final Node _n) {
+//		updateMetric(_n);
+//		inboundNodes.put(_n.getChannel().hashCode(), _n);
+//	}
 
 	// public void addOutboundNode(final Node _n) {
 	// updateMetric(_n);
@@ -240,9 +240,9 @@ public class NodeMgr implements INodeMgr {
 		return activeNodes.get(k);
 	}
 
-	public Node getInboundNode(int k) {
-		return inboundNodes.get(k);
-	}
+//	public Node getInboundNode(int k) {
+//		return inboundNodes.get(k);
+//	}
 
 	// public Node getOutboundNode(int k) {
 	// return outboundNodes.get(k);
@@ -252,7 +252,7 @@ public class NodeMgr implements INodeMgr {
 		return allNodes;
 	}
 
-	List<Node> allStmNodes = new CopyOnWriteArrayList();
+	public List<Node> allStmNodes = new CopyOnWriteArrayList();
 
 	public Node allocNode(String ip, int p0, int p1) {
 		Node n = new Node(ip, p0, p1);
@@ -425,24 +425,24 @@ public class NodeMgr implements INodeMgr {
 		}
 	}
 
-	public void rmTimeOutInbound(IP2pMgr pmgr) {
-		{
-			Iterator inboundIt = inboundNodes.keySet().iterator();
-			while (inboundIt.hasNext()) {
-				int key = (int) inboundIt.next();
-				Node node = inboundNodes.get(key);
-				if (System.currentTimeMillis() - node.getTimestamp() > TIMEOUT_INBOUND_NODES) {
-
-					pmgr.closeSocket(node.getChannel());
-
-					inboundIt.remove();
-
-					if (pmgr.isShowLog())
-						System.out.println("<p2p-clear inbound-timeout>");
-				}
-			}
-		}
-	}
+//	public void rmTimeOutInbound(IP2pMgr pmgr) {
+//		{
+//			Iterator inboundIt = inboundNodes.keySet().iterator();
+//			while (inboundIt.hasNext()) {
+//				int key = (int) inboundIt.next();
+//				Node node = inboundNodes.get(key);
+//				if (System.currentTimeMillis() - node.getTimestamp() > TIMEOUT_INBOUND_NODES) {
+//
+//					pmgr.closeSocket(node.getChannel());
+//
+//					inboundIt.remove();
+//
+//					if (pmgr.isShowLog())
+//						System.out.println("<p2p-clear inbound-timeout>");
+//				}
+//			}
+//		}
+//	}
 
 	public void rmTimeOutActives(IP2pMgr pmgr) {
 		long now = System.currentTimeMillis();
@@ -497,8 +497,8 @@ public class NodeMgr implements INodeMgr {
 			activeNodes.clear();
 			// outboundNodes.forEach((k, n) -> _p2pMgr.closeSocket(n.getChannel()));
 			// outboundNodes.clear();
-			inboundNodes.forEach((k, n) -> _p2pMgr.closeSocket(n.getChannel()));
-			inboundNodes.clear();
+//			inboundNodes.forEach((k, n) -> _p2pMgr.closeSocket(n.getChannel()));
+//			inboundNodes.clear();
 		} catch (Exception e) {
 
 		}
