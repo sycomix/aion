@@ -70,6 +70,8 @@ public final class Node implements INode {
 
 	private int fullHash = -1;
 
+	public NodeStm st = new NodeStm();
+
 	/**
 	 * for display only
 	 */
@@ -108,7 +110,7 @@ public final class Node implements INode {
 	 */
 	private Node(boolean fromBootList, String _ipStr) {
 		this.fromBootList = fromBootList;
-		this.idHash = 0;
+		//this.idHash = 0;
 		this.ip = ipStrToBytes(_ipStr);
 		this.ipStr = _ipStr;
 		this.port = -1;
@@ -122,7 +124,7 @@ public final class Node implements INode {
 	 */
 	Node(String _ipStr, int port, int portConnected) {
 		this.fromBootList = false;
-		this.idHash = 0;
+		//this.idHash = 0;
 		this.ip = ipStrToBytes(_ipStr);
 		this.ipStr = _ipStr;
 		this.port = port;
@@ -138,7 +140,7 @@ public final class Node implements INode {
 		this.fromBootList = fromBootList;
 		this.id = _id;
 		if (_id != null && _id.length == 36) {
-			this.idHash = Arrays.hashCode(_id);
+//			this.idHash = Arrays.hashCode(_id);
 			this.idShort = new String(Arrays.copyOfRange(_id, 0, 6));
 		}
 		this.ip = _ip;
@@ -222,7 +224,7 @@ public final class Node implements INode {
 	public void setId(final byte[] _id) {
 		this.id = _id;
 		if (_id != null && _id.length == 36) {
-			this.idHash = Arrays.hashCode(_id);
+			//this.idHash = Arrays.hashCode(_id);
 			this.idShort = new String(Arrays.copyOfRange(_id, 0, 6));
 		}
 	}
@@ -319,6 +321,13 @@ public final class Node implements INode {
 	@Override
 	public int getIdHash() {
 		return this.idHash;
+	}
+
+	public int getCid() {
+		if (this.channel == null)
+			return -1;
+		else
+			return this.channel.hashCode();
 	}
 
 	/**

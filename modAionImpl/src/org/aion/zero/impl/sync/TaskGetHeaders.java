@@ -45,65 +45,66 @@ import java.util.stream.Collectors;
  */
 final class TaskGetHeaders implements Runnable {
 
-    private final IP2pMgr p2p;
+	private final IP2pMgr p2p;
 
-    private final long selfNumber;
+	private final long selfNumber;
 
-    private final BigInteger selfTd;
+	private final BigInteger selfTd;
 
-    private final int backwardMin;
+	private final int backwardMin;
 
-    private final int backwardMax;
+	private final int backwardMax;
 
-    private final int requestMax;
+	private final int requestMax;
 
-    private final Logger log;
+	private final Logger log;
 
-    private final Random random = new Random(System.currentTimeMillis());
+	private final Random random = new Random(System.currentTimeMillis());
 
-    TaskGetHeaders(IP2pMgr p2p, long selfNumber, BigInteger selfTd,
-                   int backwardMin, int backwardMax, int requestMax, Logger log) {
-        this.p2p = p2p;
-        this.selfNumber = selfNumber;
-        this.selfTd = selfTd;
-        this.backwardMin = backwardMin;
-        this.backwardMax = backwardMax;
-        this.requestMax = requestMax;
-        this.log = log;
-    }
+	TaskGetHeaders(IP2pMgr p2p, long selfNumber, BigInteger selfTd, int backwardMin, int backwardMax, int requestMax,
+			Logger log) {
+		this.p2p = p2p;
+		this.selfNumber = selfNumber;
+		this.selfTd = selfTd;
+		this.backwardMin = backwardMin;
+		this.backwardMax = backwardMax;
+		this.requestMax = requestMax;
+		this.log = log;
+	}
 
-    @Override
-    public void run() {
-        // get all active nodes
-        Collection<INode> nodes = this.p2p.getActiveNodes().values();
+	@Override
+	public void run() {
 
-        // filter nodes by total difficulty
-        List<INode> nodesFiltered = nodes.stream().filter(
-                (n) -> n.getTotalDifficulty() != null &&
-                        n.getTotalDifficulty().compareTo(this.selfTd) >= 0
-        ).collect(Collectors.toList());
-        if (nodesFiltered.isEmpty()) {
-            return;
-        }
+		// get all active nodes
+		Collection<INode> nodes = this.p2p.getActiveNodes().values();
 
-        // pick a random node
-        INode node = nodesFiltered.get(random.nextInt(nodesFiltered.size()));
-        long nodeNumber = node.getBestBlockNumber();
-        long from = 0;
-        if (nodeNumber >= selfNumber + 128) {
-            from = Math.max(1, selfNumber - backwardMin);
-        } else if (nodeNumber >= selfNumber - 128) {
-            from = Math.max(1, selfNumber - backwardMax);
-        } else {
-            // no need to request from this node. His TD is probably corrupted.
-            return;
-        }
+		// filter nodes by total difficulty
+		List<INode> nodesFiltered = nodes.stream()
+				.filter((n) -> n.getTotalDifficulty() != null && n.getTotalDifficulty().compareTo(this.selfTd) >= 0)
+				.collect(Collectors.toList());
+		if (nodesFiltered.isEmpty()) {
+			return;
+		}
 
-        // send request
-        if (log.isDebugEnabled()) {
-            log.debug("<get-headers from-num={} size={} node={}>", from, requestMax, node.getIdShort());
-        }
-        ReqBlocksHeaders rbh = new ReqBlocksHeaders(from, requestMax);
-        this.p2p.send(node.getIdHash(), rbh);
-    }
+		// pick a random node
+		INode node = nodesFiltered.get(random.nextInt(nodesFiltered.size()));
+		long nodeNumber = node.getBestBlockNumber();
+		long from = 0;
+		if (nodeNumber >= selfNumber + 128) {
+			from = Math.max(1, selfNumber - backwardMin);
+		} else if (nodeNumber >= selfNumber - 128) {
+			from = Math.max(1, selfNumber - backwardMax);
+		} else {
+			// no need to request from this node. His TD is probably corrupted.
+			return;
+		}
+
+		// send request
+		if (log.isDebugEnabled()) {
+			log.debug("<get-headers from-num={} size={} node={}>", from, requestMax, node.getIdShort());
+		}
+		ReqBlocksHeaders rbh = new ReqBlocksHeaders(from, requestMax);
+		// this.p2p.send(node.getIdHash(), rbh);
+		this.p2p.send(node.getCid(), rbh);
+	}
 }

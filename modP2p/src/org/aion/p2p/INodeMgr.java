@@ -13,7 +13,7 @@ public interface INodeMgr {
 
 	void moveInboundToActive(int _channelHashCode, final IP2pMgr _p2pMgr);
 
-	void moveOutboundToActive(int _nodeIdHash, String _shortId, final IP2pMgr _p2pMgr);
+	//void moveOutboundToActive(int _nodeIdHash, String _shortId, final IP2pMgr _p2pMgr);
 
 	void dropActive(Integer nodeIdHash, IP2pMgr pmgr);
 

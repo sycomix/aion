@@ -91,6 +91,7 @@ final class TaskGetBodies implements Runnable {
             }
 
             int idHash = hw.getNodeIdHash();
+            
             List<A0BlockHeader> headers = hw.getHeaders();
             if (headers.isEmpty()) {
                 continue;
