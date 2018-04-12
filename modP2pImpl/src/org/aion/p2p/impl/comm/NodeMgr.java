@@ -231,8 +231,8 @@ public class NodeMgr implements INodeMgr {
 				if (n1.getCid() < 0 || n1.getIdHash() == 0)
 					continue;
 
-				if (n.getIdHash() == n1.getIdHash() && n.getIp() == n1.getIp() && n.getPort() == n1.getPort()
-						&& n.getCid() != n.getCid()) {
+				if (n.getIdHash() == n1.getIdHash() && (Arrays.compare(n.getIp(), n1.getIp()) == 0)
+						&& n.getPort() == n1.getPort() && n.getCid() != n1.getCid()) {
 					allStmNodes.remove(n1);
 					try {
 						n1.getChannel().close();
@@ -336,6 +336,26 @@ public class NodeMgr implements INodeMgr {
 			}
 		}
 		return null;
+	}
+
+	public boolean isDupNode(Node _node) {
+		for (Node n : allStmNodes) {
+			if (_node.getIdHash() == n.getIdHash() && Arrays.compare(_node.getIp(), n.getIp()) == 0
+					&& _node.getPort() == n.getPort()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public void closeNode(Node n) {
+		if (n.getChannel() != null) {
+			try {
+				n.getChannel().close();
+			} catch (Exception e) {
+			}
+			this.allStmNodes.remove(n);
+		}
 	}
 
 	public Node getStmNodeByNid(int nid, int st) {

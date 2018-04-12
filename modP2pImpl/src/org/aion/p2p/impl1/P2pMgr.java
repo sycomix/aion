@@ -171,11 +171,15 @@ public final class P2pMgr implements IP2pMgr {
 			final ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
 
 			while (start.get()) {
+				try {
+					Thread.sleep(0, 1);
+				} catch (Exception e) {
+				}
 
 				int num;
 				try {
-					 num = selector.select(1);
-					//num = selector.selectNow();
+					// num = selector.select(1);
+					num = selector.selectNow();
 				} catch (IOException e) {
 					if (showLog)
 						System.out.println("<p2p inbound-select-io-exception>");
@@ -183,10 +187,10 @@ public final class P2pMgr implements IP2pMgr {
 				}
 
 				if (num == 0) {
-//					try {
-//						Thread.sleep(0, 1);
-//					} catch (Exception e) {
-//					}
+					try {
+						Thread.sleep(0, 10);
+					} catch (Exception e) {
+					}
 					continue;
 				}
 
@@ -620,9 +624,9 @@ public final class P2pMgr implements IP2pMgr {
 					continue;
 				// if (node.getIfFromBootList())
 				// nodeMgr.tempNodesAdd(node);
-				// if (node.peerMetric.shouldNotConn()) {
-				// continue;
-				// }
+				if (node.peerMetric.shouldNotConn()) {
+					continue;
+				}
 
 				// int nodeIdHash = node.getIdHash();
 				int cid = node.getCid();
@@ -693,13 +697,15 @@ public final class P2pMgr implements IP2pMgr {
 					// reconnect node stuck during handshake.
 					List<Node> ns = nodeMgr.getStmNodeHS();
 					for (Node n : ns) {
-						if (n.getCid() > 0)
+						if (n.getCid() > 0) {
 							P2pMgr.this.sendMsgQue.add(new MsgOut(n.getCid(), cachedReqHandshake1, Dest.OUTBOUND));
+							n.peerMetric.incHScnt();
+						}
 					}
 
 					// remove closed channel.
 					nodeMgr.removeClosed();
-					
+
 					nodeMgr.removeDups();
 
 					// nodeMgr.rmTimeOutInbound(P2pMgr.this);
@@ -1020,6 +1026,13 @@ public final class P2pMgr implements IP2pMgr {
 
 		Node node = nodeMgr.getStmNode(cid, NodeStm.ACCEPTED);
 
+		node.peerMetric.decHScnt();
+
+		// if (nodeMgr.isDupNode(node)) {
+		// nodeMgr.closeNode(node);
+		// return;
+		// }
+
 		if (node != null && node.getCid() > 0 && node.peerMetric.notBan()) {
 			if (handshakeRuleCheck(_netId)) {
 				node.setId(_nodeId);
@@ -1052,6 +1065,12 @@ public final class P2pMgr implements IP2pMgr {
 	private void handleResHandshake(int cid, String _binaryVersion) {
 
 		Node node = nodeMgr.getStmNode(cid, NodeStm.CONNECTTED);
+		node.peerMetric.incHScnt();
+
+		// if (nodeMgr.isDupNode(node)) {
+		// nodeMgr.closeNode(node);
+		// return;
+		// }
 
 		if (node != null && node.getCid() > 0 && node.peerMetric.notBan()) {
 

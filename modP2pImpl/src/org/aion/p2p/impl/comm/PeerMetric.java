@@ -35,10 +35,21 @@ public final class PeerMetric {
 	private long metricFailedConnTs;
 	private long metricBanConnTs;
 
+	private long metricHS;
+	private long metricHSTs;
+
 	public boolean shouldNotConn() {
-		return (metricFailedConn > STOP_CONN_AFTER_FAILED_CONN
-				&& ((System.currentTimeMillis() - metricFailedConnTs) > FAILED_CONN_RETRY_INTERVAL))
-				|| ((System.currentTimeMillis() - metricBanConnTs) < BAN_CONN_RETRY_INTERVAL);
+
+		boolean failConnBan = (metricFailedConn > STOP_CONN_AFTER_FAILED_CONN
+				&& ((System.currentTimeMillis() - metricFailedConnTs) > FAILED_CONN_RETRY_INTERVAL));
+
+		// wait test confirm!
+		// boolean hsBan = (metricHSTs > STOP_CONN_AFTER_FAILED_CONN
+		// && ((System.currentTimeMillis() - metricHSTs) > FAILED_CONN_RETRY_INTERVAL));
+
+		boolean hsBan = false;
+
+		return (failConnBan || hsBan || ((System.currentTimeMillis() - metricBanConnTs) < BAN_CONN_RETRY_INTERVAL));
 	}
 
 	public void incFailedCount() {
@@ -49,6 +60,16 @@ public final class PeerMetric {
 	public void decFailedCount() {
 		if (metricFailedConn > 0)
 			metricFailedConn--;
+	}
+
+	public void incHScnt() {
+		metricHS++;
+		metricHSTs = System.currentTimeMillis();
+	}
+
+	public void decHScnt() {
+		if (metricHS > 0)
+			metricHS--;
 	}
 
 	public void ban() {
