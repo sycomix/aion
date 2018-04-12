@@ -111,7 +111,7 @@ public class NodeMgr implements INodeMgr {
             sb.append("              ip");
             sb.append("  port");
             sb.append("     conn");
-            sb.append("              bv    stat\n");
+            sb.append("              bv    stat     cid\n");
             sb.append(
                     "-------------------------------------------------------------------------------------------------------------------------------------------------------\n");
             sorted.sort((n1, n2) -> {
@@ -125,11 +125,11 @@ public class NodeMgr implements INodeMgr {
             });
             for (Node n : sorted) {
                 try {
-                    sb.append(String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s %8s \n", n.getIdShort(),
+                    sb.append(String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s %8s %8s\n", n.getIdShort(),
                             n.getIfFromBootList() ? 'y' : ' ', n.getTotalDifficulty().toString(10),
                             n.getBestBlockNumber(),
                             n.getBestBlockHash() == null ? "" : bytesToHex(n.getBestBlockHash()), n.getIpStr(),
-                            n.getPort(), n.getConnection(), n.getBinaryVersion(), n.st.toString()));
+                            n.getPort(), n.getConnection(), n.getBinaryVersion(), n.st.toString(), n.getCid()));
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -286,7 +286,7 @@ public class NodeMgr implements INodeMgr {
     public List<Node> getStmNodeHS() {
         List<Node> ns = new ArrayList<>();
         for (Node n : allStmNodes) {
-            if (!n.st.hasStat(NodeStm.HS_DONE)) {
+            if (n.st.shouldHS()) {
                 ns.add(n);
             }
         }

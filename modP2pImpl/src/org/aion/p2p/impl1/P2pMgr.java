@@ -37,6 +37,7 @@ import org.apache.commons.collections4.map.LRUMap;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
@@ -71,7 +72,7 @@ public final class P2pMgr implements IP2pMgr {
 
     private final static int PERIOD_UPNP_PORT_MAPPING = 3600000;
 
-    private final static int TIMEOUT_MSG_READ = 10000;
+    private final static int TIMEOUT_MSG_READ = 1000;
 
     private final int maxTempNodes;
     private final int maxActiveNodes;
@@ -487,11 +488,16 @@ public final class P2pMgr implements IP2pMgr {
                         node = nodeMgr.getActiveNode(mo.nid);
                         break;
                     case INBOUND:
-                        // node = nodeMgr.getInboundNode(mo.nid);
-                        nodeMgr.getStmNode(mo.nid, NodeStm.ACCEPTED);
+                        node = nodeMgr.getStmNode(mo.nid, NodeStm.ACCEPTED);
+                        if (node == null) {
+                            node = nodeMgr.getStmNode(mo.nid, NodeStm.CONNECTTED);
+                        }
                         break;
                     case OUTBOUND:
                         node = nodeMgr.getStmNode(mo.nid, NodeStm.CONNECTTED);
+                        if (node == null) {
+                            node = nodeMgr.getStmNode(mo.nid, NodeStm.ACCEPTED);
+                        }
                         break;
                     }
 
@@ -790,9 +796,9 @@ public final class P2pMgr implements IP2pMgr {
     private void configChannel(final SocketChannel _channel) throws IOException {
         _channel.configureBlocking(false);
         _channel.socket().setSoTimeout(TIMEOUT_MSG_READ);
-        _channel.socket().setSendBufferSize(204800);
-        _channel.socket().setReceiveBufferSize(204800);
-        // _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+        // _channel.socket().setSendBufferSize(204800);
+        // _channel.socket().setReceiveBufferSize(204800);
+        _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
         // _channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
         // _channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
     }
@@ -814,6 +820,11 @@ public final class P2pMgr implements IP2pMgr {
             if (showLog)
                 System.out.println("<p2p close-socket-io-exception>");
         }
+
+        Node n = this.nodeMgr.getStmNode(_sc.hashCode(), NodeStm.ALL);
+
+        if (n != null)
+            n.st.setInit();
     }
 
     private void accept() {
