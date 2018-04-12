@@ -25,7 +25,11 @@
 package org.aion.p2p.impl1;
 
 import org.aion.p2p.Header;
+import org.aion.p2p.impl1.P2pMgr.MsgParse;
+
 import java.nio.ByteBuffer;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 
@@ -36,66 +40,64 @@ import java.util.concurrent.locks.Lock;
  */
 class ChannelBuffer {
 
+    Queue<MsgParse> inQueue = new ConcurrentLinkedQueue<>();
 
-	private static final int READ_BUFFER_SIZE = 512 * 1024; 
-	static public ByteBuffer readBuf = ByteBuffer.allocate(READ_BUFFER_SIZE);
-	
-	int buffRemain = 0;
+    int buffRemain = 0;
 
-	int cid = 0;
+    int cid = 0;
 
-	Header header = null;
+    Header header = null;
 
-	byte[] bsHead = new byte[Header.LEN];
+    byte[] bsHead = new byte[Header.LEN];
 
-	byte[] body = null;
+    byte[] body = null;
 
-	Lock lock = new java.util.concurrent.locks.ReentrantLock();
+    Lock lock = new java.util.concurrent.locks.ReentrantLock();
 
-	/**
-	 * write flag
-	 */
-	public AtomicBoolean onWrite = new AtomicBoolean(false);
+    /**
+     * write flag
+     */
+    public AtomicBoolean onWrite = new AtomicBoolean(false);
 
-	/**
-	 * Indicates whether this channel is closed.
-	 */
-	public AtomicBoolean isClosed = new AtomicBoolean(false);
+    /**
+     * Indicates whether this channel is closed.
+     */
+    public AtomicBoolean isClosed = new AtomicBoolean(false);
 
-	void readHead(ByteBuffer buf) {
-		buf.get(bsHead);
-		try {
-			header = Header.decode(bsHead);
-		} catch (Exception e) {
-			//e.printStackTrace();
-		}
-	}
+    void readHead(ByteBuffer buf) {
+        buf.get(bsHead);
+        try {
+            header = Header.decode(bsHead);
+        } catch (Exception e) {
+            // e.printStackTrace();
+        }
+    }
 
-	void readBody(ByteBuffer buf) {
-		body = new byte[header.getLen()];
-		buf.get(body);
-	}
+    void readBody(ByteBuffer buf) {
+        body = new byte[header.getLen()];
+        buf.get(body);
+    }
 
-	void refreshHeader() {
-		header = null;
-	}
+    void refreshHeader() {
+        header = null;
+    }
 
-	void refreshBody() {
-		body = null;
-	}
+    void refreshBody() {
+        body = null;
+    }
 
-	/**
-	 * @return boolean
-	 */
-	boolean isHeaderCompleted() {
-		return header != null;
-	}
+    /**
+     * @return boolean
+     */
+    boolean isHeaderCompleted() {
+        return header != null;
+    }
 
-	/**
-	 * @return boolean
-	 */
-	boolean isBodyCompleted() {
-		return this.header != null && this.body != null && body.length == header.getLen();
-	}
+    /**
+     * @return boolean
+     */
+    boolean isBodyCompleted() {
+        return this.header != null && this.body != null && body.length == header.getLen();
+    }
 
 }
