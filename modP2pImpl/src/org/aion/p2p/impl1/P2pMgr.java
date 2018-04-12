@@ -39,6 +39,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
+import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -269,6 +270,15 @@ public final class P2pMgr implements IP2pMgr {
 
 							closeSocket((SocketChannel) sk.channel());
 							chanBuf.isClosed.set(true);
+
+						} catch (CancelledKeyException e) {
+							if (showLog) {
+								System.out.println("<p2p key-cancelled-exception>");
+							}
+
+							chanBuf.isClosed.set(true);
+							closeSocket((SocketChannel) sk.channel());
+
 						}
 					}
 				}
