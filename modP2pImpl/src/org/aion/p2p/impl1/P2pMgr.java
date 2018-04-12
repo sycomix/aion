@@ -65,7 +65,7 @@ public final class P2pMgr implements IP2pMgr {
 	private final static int PERIOD_SHOW_STATUS = 10000;
 	private final static int PERIOD_REQUEST_ACTIVE_NODES = 1000;
 	private final static int PERIOD_CONNECT_OUTBOUND = 500;
-	private final static int PERIOD_CLEAR = 500;
+	private final static int PERIOD_CLEAR = 1000;
 
 	private final static int TIMEOUT_OUTBOUND_CONNECT = 10000;
 
@@ -174,8 +174,8 @@ public final class P2pMgr implements IP2pMgr {
 
 				int num;
 				try {
-					// num = selector.select(1);
-					num = selector.selectNow();
+					 num = selector.select(1);
+					//num = selector.selectNow();
 				} catch (IOException e) {
 					if (showLog)
 						System.out.println("<p2p inbound-select-io-exception>");
@@ -183,10 +183,10 @@ public final class P2pMgr implements IP2pMgr {
 				}
 
 				if (num == 0) {
-					try {
-						Thread.sleep(0, 1);
-					} catch (Exception e) {
-					}
+//					try {
+//						Thread.sleep(0, 1);
+//					} catch (Exception e) {
+//					}
 					continue;
 				}
 
@@ -614,7 +614,7 @@ public final class P2pMgr implements IP2pMgr {
 
 				Node node;
 
-				node = nodeMgr.getInitNode();
+				node = nodeMgr.getRandomInitNode();
 
 				if (node == null)
 					continue;
@@ -699,6 +699,8 @@ public final class P2pMgr implements IP2pMgr {
 
 					// remove closed channel.
 					nodeMgr.removeClosed();
+					
+					nodeMgr.removeDups();
 
 					// nodeMgr.rmTimeOutInbound(P2pMgr.this);
 					//

@@ -125,7 +125,7 @@ public class NodeMgr implements INodeMgr {
 			});
 			for (Node n : sorted) {
 				try {
-					sb.append(String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s %8s %8s\n", n.getIdShort(),
+					sb.append(String.format("id:%6s %c %16s %10d %64s %15s %5d %8s %15s %8s %12s\n", n.getIdShort(),
 							n.getIfFromBootList() ? 'y' : ' ', n.getTotalDifficulty().toString(10),
 							n.getBestBlockNumber(),
 							n.getBestBlockHash() == null ? "" : bytesToHex(n.getBestBlockHash()), n.getIpStr(),
@@ -189,21 +189,25 @@ public class NodeMgr implements INodeMgr {
 		return notNull && notSelfId && notSameIpOrPort && notActive && notOutbound;
 	}
 
+	/**
+	 * 
+	 * Add nodes from active nodes response. Assume node have node id , but without
+	 * channel.
+	 * 
+	 * @param _node
+	 * @return
+	 */
 	public boolean validateNodeForAdd(final Node _node) {
-		boolean notNull = _node != null;
+		if (_node == null)
+			return false;
 
 		// either nid or cid.
 		if (_node.getIdHash() == 0 && _node.getChannel() == null) {
 			return false;
 		}
 		// filter self
-		boolean notSelfId = _node.getIdHash() != selfNid;
-
-		// filter already active.
-		boolean notActive = !hasActiveNode(_node.getCid());
-
-		// filter out conntected.
-		boolean notOutbound = !(_node.st.stat == NodeStm.CONNECTTED);
+		if (_node.getIdHash() == selfNid)
+			return false;
 
 		for (Node n : allStmNodes) {
 			if ((n.getIdHash() != 0) && (n.getIdHash() == _node.getIdHash())) {
@@ -211,7 +215,32 @@ public class NodeMgr implements INodeMgr {
 			}
 		}
 
-		return notNull && notSelfId && notActive && notOutbound;
+		return true;
+	}
+
+	public void removeDups() {
+		for (Node n : allStmNodes) {
+
+			if (n.getCid() < 0 || n.getIdHash() == 0)
+				continue;
+
+			for (Node n1 : allStmNodes) {
+				if (n == n1)
+					continue;
+
+				if (n1.getCid() < 0 || n1.getIdHash() == 0)
+					continue;
+
+				if (n.getIdHash() == n1.getIdHash() && n.getIp() == n1.getIp() && n.getPort() == n1.getPort()
+						&& n.getCid() != n.getCid()) {
+					allStmNodes.remove(n1);
+					try {
+						n1.getChannel().close();
+					} catch (Exception e) {
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -266,13 +295,20 @@ public class NodeMgr implements INodeMgr {
 		return ret;
 	}
 
-	public Node getInitNode() {
+	public Node getRandomInitNode() {
+		List<Node> ns = new ArrayList<>();
+
 		for (Node n : allStmNodes) {
 			if (n.st.hasStat(NodeStm.INIT)) {
-				return n;
+				ns.add(n);
 			}
 		}
-		return null;
+
+		if (ns.size() == 0)
+			return null;
+
+		int pos = (int) (Math.random() * ns.size());
+		return ns.get(pos);
 	}
 
 	public void addStmNode(Node n) {
@@ -323,7 +359,7 @@ public class NodeMgr implements INodeMgr {
 
 	public void removeClosed() {
 		for (Node n : allStmNodes) {
-			if (n.getCid() < 0 || n.st.hasStat(NodeStm.CLOSED))
+			if (((n.getCid() < 0) && (!n.st.hasStat(NodeStm.INIT))) || n.st.hasStat(NodeStm.CLOSED))
 				allStmNodes.remove(n);
 		}
 	}
