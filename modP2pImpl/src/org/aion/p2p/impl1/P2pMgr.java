@@ -38,6 +38,7 @@ import org.apache.commons.collections4.map.LRUMap;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.file.Files;
@@ -238,6 +239,10 @@ public final class P2pMgr implements IP2pMgr {
 
                             if (cnt == 0) {
                                 readBuf.rewind();
+
+                                // let GC recycle instead of hold, as it's maybe
+                                // huge.
+                                chanBuf.remainBuffer = null;
                             } else {
                                 // there are no perfect cycling buffer in jdk
                                 // yet.
@@ -612,7 +617,8 @@ public final class P2pMgr implements IP2pMgr {
         // set buffer to 256k.
         _channel.socket().setReceiveBufferSize(P2pConstant.RECV_BUFFER_SIZE);
         _channel.socket().setSendBufferSize(P2pConstant.SEND_BUFFER_SIZE);
-        // _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+        _channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+
         // _channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
         // _channel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
     }
