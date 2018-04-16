@@ -375,7 +375,7 @@ public final class P2pMgr implements IP2pMgr {
         static final int TOTAL_LANE = (1 << 5) - 1;
         int lane;
 
-        static final long MSG_TIMEOUT = 10000;
+        static final long MSG_TIMEOUT = 2000;
 
         TaskSend(int _lane) {
             this.lane = _lane;
@@ -389,10 +389,11 @@ public final class P2pMgr implements IP2pMgr {
                     MsgOut mo;
                     while (sendQueLite.peek() != null) {
                         mo = sendQueLite.poll();
-                        // if (hash2Lane(mo.nid) != lane) {
-                        // sendP2pMsgQue.offer(mo);
-                        // continue OUT;
-                        // }
+                        if (hash2Lane(mo.nid) != lane) {
+                            if (System.currentTimeMillis() - mo.ts < MSG_TIMEOUT)
+                                sendQueLite.offer(mo);
+                            break;
+                        }
                         Node node = null;
                         switch (mo.dest) {
                         case ACTIVE:
@@ -909,6 +910,26 @@ public final class P2pMgr implements IP2pMgr {
         byte[] bodyBytes = rb.body;
         rb.refreshHeader();
         rb.refreshBody();
+
+        long ts = System.currentTimeMillis();
+
+        // rate control
+        // clear RC status every sec.
+        if (ts - rb.intTs > 1000) {
+            rb.inCnt = 0;
+            rb.intTs = ts;
+        }
+
+        rb.inCnt++;
+
+        if (rb.inCnt > ChannelBuffer.MAX_MSG_RATE) {
+
+            if (isShowLog())
+                System.out.println(" p2p in out of rate control. attack from nid_" + rb.nodeIdHash + " cid_"
+                        + _sk.channel().hashCode());
+
+            return currCnt;
+        }
 
         short ver = h.getVer();
         byte ctrl = h.getCtrl();

@@ -38,9 +38,16 @@ import java.util.concurrent.locks.Lock;
  */
 class ChannelBuffer {
 
+    //
+    public static int MAX_MSG_RATE = 64;
+
+    // rate control
+    int inCnt;
+    long intTs = System.currentTimeMillis();
+
     // buffer for buffer remaining after NIO select read.
     byte[] remainBuffer;
-    
+
     int buffRemain = 0;
 
     int nodeIdHash = 0;
