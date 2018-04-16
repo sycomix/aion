@@ -47,6 +47,6 @@ public final class TaskRequestActiveNodes implements Runnable {
 	public void run() {
 		INode node = mgr.getRandom();
 		if (node != null)
-			this.mgr.send(node.getIdHash(), new ReqActiveNodes());
+			this.mgr.sendP2p(node.getIdHash(), new ReqActiveNodes());
 	}
 }

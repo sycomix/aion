@@ -90,7 +90,13 @@ public class TaskWrite implements Runnable {
             // print route
             // System.out.println("write " + h.getVer() + "-" + h.getCtrl() +
             // "-" + h.getAction());
-            ByteBuffer buf = ByteBuffer.allocate(headerBytes.length + bodyLen);
+
+            int sendSize = headerBytes.length + bodyLen;
+
+            System.out.println("DEBUG p2p send msg size=" + sendSize);
+
+            ByteBuffer buf = ByteBuffer.allocate(sendSize);
+
             buf.put(headerBytes);
             if (bodyBytes != null)
                 buf.put(bodyBytes);
@@ -100,9 +106,10 @@ public class TaskWrite implements Runnable {
 
             try {
                 while (buf.hasRemaining()) {
-                    if (System.currentTimeMillis() - startTs < P2pConstant.WRITE_TIME_OUT)
+                    if (System.currentTimeMillis() - startTs < P2pConstant.WRITE_TIME_OUT) {
+                        Thread.sleep(0, 1);
                         sc.write(buf);
-                    else {
+                    } else {
                         if (showLog) {
                             System.out.println("<p2p io-write-timeout: " + nodeShortId + " msgLen:"
                                     + msg.getHeader().getLen() + ">");

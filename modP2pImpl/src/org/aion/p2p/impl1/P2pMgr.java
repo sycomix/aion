@@ -46,6 +46,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Chris p2p://{uuid}@{ip}:{port} TODO: 1) simplify id bytest to int, ip
@@ -109,11 +110,13 @@ public final class P2pMgr implements IP2pMgr {
             nid = _nid;
             msg = _msg;
             dest = _dst;
+            ts = System.currentTimeMillis();
         }
 
         int nid;
         Msg msg;
         Dest dest;
+        long ts;
     }
 
     private static class MsgIn {
@@ -130,7 +133,9 @@ public final class P2pMgr implements IP2pMgr {
         byte[] msg;
     }
 
-    private LinkedBlockingQueue<MsgOut> sendMsgQue = new LinkedBlockingQueue<>();
+    private LinkedBlockingQueue<MsgOut> sendQueHeavy = new LinkedBlockingQueue<>();
+
+    private LinkedBlockingQueue<MsgOut> sendQueLite = new LinkedBlockingQueue<>();
 
     private LinkedBlockingQueue<MsgIn> receiveMsgQue = new LinkedBlockingQueue<>();
 
@@ -306,13 +311,14 @@ public final class P2pMgr implements IP2pMgr {
         }
     }
 
-    private final class TaskSend implements Runnable {
+    private final class TaskP2pSend implements Runnable {
         @Override
         public void run() {
 
             while (true) {
+
                 try {
-                    MsgOut mo = sendMsgQue.take();
+                    MsgOut mo = sendQueLite.take();
 
                     Node node = null;
                     switch (mo.dest) {
@@ -351,6 +357,139 @@ public final class P2pMgr implements IP2pMgr {
                 } catch (InterruptedException e) {
                     System.out.println("Task send interrupted");
                     break;
+                }
+            }
+        }
+    }
+
+    int hash2Lane(int in) {
+        in ^= in >> (32 - 5);
+        in ^= in >> (32 - 10);
+        in ^= in >> (32 - 15);
+        in ^= in >> (32 - 20);
+        in ^= in >> (32 - 25);
+        return in & 0b11111;
+    }
+
+    final class TaskSend implements Runnable {
+        static final int TOTAL_LANE = (1 << 5) - 1;
+        int lane;
+
+        static final long MSG_TIMEOUT = 10000;
+
+        TaskSend(int _lane) {
+            this.lane = _lane;
+        }
+
+        @Override
+        public void run() {
+            OUT: while (true) {
+                try {
+                    Thread.sleep(0, 1);
+                    MsgOut mo;
+                    while (sendQueLite.peek() != null) {
+                        mo = sendQueLite.poll();
+                        // if (hash2Lane(mo.nid) != lane) {
+                        // sendP2pMsgQue.offer(mo);
+                        // continue OUT;
+                        // }
+                        Node node = null;
+                        switch (mo.dest) {
+                        case ACTIVE:
+                            node = nodeMgr.getActiveNode(mo.nid);
+                            break;
+                        case INBOUND:
+                            node = nodeMgr.getInboundNode(mo.nid);
+                            break;
+                        case OUTBOUND:
+                            node = nodeMgr.getOutboundNode(mo.nid);
+                            break;
+                        }
+
+                        // if still not found , let's try all nodes.
+                        if (node == null) {
+                            node = allNid.get(mo.nid);
+                        }
+                        if (node != null) {
+                            SelectionKey sk = node.getChannel().keyFor(selector);
+
+                            if (sk != null) {
+                                Object attachment = sk.attachment();
+                                if (attachment != null) {
+                                    TaskWrite tw = new TaskWrite(showLog, node.getIdShort(), node.getChannel(), mo.msg,
+                                            (ChannelBuffer) attachment, P2pMgr.this);
+                                    tw.run();
+                                }
+                            }
+                            node.refreshTimestamp();
+
+                        } else {
+                            // System.out.println("send msg, failed to find
+                            // node!
+                            // M:" + mo.msg + " D:" + mo.dest);
+                        }
+                        System.out.println(
+                                "DEBUG p2p out queue size: " + sendQueLite.size() + " | " + sendQueHeavy.size());
+                    }
+                } catch (Exception e) {
+                    System.out.println("Task p2p send error:" + e.getMessage());
+                }
+
+                try {
+
+                    MsgOut mo = sendQueHeavy.poll();
+
+                    if (mo == null)
+                        continue;
+
+                    if (hash2Lane(mo.nid) != lane) {
+
+                        // if not expired , move it back.
+                        if (System.currentTimeMillis() - mo.ts < MSG_TIMEOUT)
+                            sendQueHeavy.offer(mo);
+                        continue OUT;
+                    }
+
+                    System.out.println("DEBUG p2p out queue size: " + sendQueLite.size() + " | " + sendQueHeavy.size());
+
+                    Node node = null;
+                    switch (mo.dest) {
+                    case ACTIVE:
+                        node = nodeMgr.getActiveNode(mo.nid);
+                        break;
+                    case INBOUND:
+                        node = nodeMgr.getInboundNode(mo.nid);
+                        break;
+                    case OUTBOUND:
+                        node = nodeMgr.getOutboundNode(mo.nid);
+                        break;
+                    }
+
+                    // if still not found , let's try all nodes.
+                    if (node == null) {
+                        node = allNid.get(mo.nid);
+                    }
+                    if (node != null) {
+                        SelectionKey sk = node.getChannel().keyFor(selector);
+
+                        if (sk != null) {
+                            Object attachment = sk.attachment();
+                            if (attachment != null) {
+                                TaskWrite tw = new TaskWrite(showLog, node.getIdShort(), node.getChannel(), mo.msg,
+                                        (ChannelBuffer) attachment, P2pMgr.this);
+                                tw.run();
+                            }
+                        }
+                        node.refreshTimestamp();
+
+                    } else {
+                        // System.out.println("send msg, failed to find
+                        // node!
+                        // M:" + mo.msg + " D:" + mo.dest);
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("Task send error:" + e.getMessage());
                 }
             }
         }
@@ -473,7 +612,7 @@ public final class P2pMgr implements IP2pMgr {
                                 Thread.sleep(1000);
                             } catch (Exception e) {
                             }
-                            sendMsgQue.offer(new MsgOut(node.getIdHash(), cachedReqHandshake1, Dest.OUTBOUND));
+                            sendQueLite.offer(new MsgOut(node.getIdHash(), cachedReqHandshake1, Dest.OUTBOUND));
 
                             if (showLog)
                                 System.out.println("<p2p action=connect-outbound addr=" + node.getIpStr() + ":" + _port
@@ -537,6 +676,7 @@ public final class P2pMgr implements IP2pMgr {
                 }
             }
         }
+
     }
 
     /**
@@ -844,7 +984,7 @@ public final class P2pMgr implements IP2pMgr {
                         binaryVersion = "decode-fail";
                     }
                     node.setBinaryVersion(binaryVersion);
-                    sendMsgQue.offer(new MsgOut(node.getChannel().hashCode(), cachedResHandshake1, Dest.INBOUND));
+                    sendQueLite.offer(new MsgOut(node.getChannel().hashCode(), cachedResHandshake1, Dest.INBOUND));
                 }
                 nodeMgr.moveInboundToActive(_channelHash, this);
             } else {
@@ -903,7 +1043,7 @@ public final class P2pMgr implements IP2pMgr {
             if (rb.nodeIdHash != 0) {
                 Node node = nodeMgr.getActiveNode(rb.nodeIdHash);
                 if (node != null)
-                    sendMsgQue.offer(new MsgOut(node.getIdHash(), new ResActiveNodes(nodeMgr.getActiveNodesList()),
+                    sendQueLite.offer(new MsgOut(node.getIdHash(), new ResActiveNodes(nodeMgr.getActiveNodesList()),
                             Dest.ACTIVE));
             }
             break;
@@ -992,8 +1132,8 @@ public final class P2pMgr implements IP2pMgr {
             thrdIn.setPriority(Thread.NORM_PRIORITY);
             thrdIn.start();
 
-            for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
-                Thread thrdOut = new Thread(new TaskSend(), "p2p-out-" + i);
+            for (int i = 0; i < TaskSend.TOTAL_LANE; i++) {
+                Thread thrdOut = new Thread(new TaskSend(i), "p2p-out-" + i);
                 thrdOut.setPriority(Thread.NORM_PRIORITY);
                 thrdOut.start();
             }
@@ -1073,7 +1213,12 @@ public final class P2pMgr implements IP2pMgr {
 
     @Override
     public void send(int _nodeIdHashcode, final Msg _msg) {
-        sendMsgQue.offer(new MsgOut(_nodeIdHashcode, _msg, Dest.ACTIVE));
+
+        sendQueHeavy.offer(new MsgOut(_nodeIdHashcode, _msg, Dest.ACTIVE));
+    }
+
+    public void sendP2p(int _nodeIdHashcode, final Msg _msg) {
+        sendQueLite.offer(new MsgOut(_nodeIdHashcode, _msg, Dest.ACTIVE));
     }
 
     @Override

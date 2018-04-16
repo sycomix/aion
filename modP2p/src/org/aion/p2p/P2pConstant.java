@@ -14,9 +14,9 @@ public class P2pConstant {
 
             MAX_BODY_SIZE = Constant.MAX_BLK_SIZE * 32, //
 
-            RECV_BUFFER_SIZE = 256 * 1024, //
+            RECV_BUFFER_SIZE = 8192 * 1024, //
 
-            SEND_BUFFER_SIZE = 256 * 1024, //
+            SEND_BUFFER_SIZE = 8192 * 1024, //
 
             WRITE_TIME_OUT = 10000;
 

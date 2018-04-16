@@ -66,6 +66,8 @@ public abstract class AbstractTxTask<TX extends ITransaction, P2P extends IP2pMg
         try {
             Map<Integer, INode> activeNodes = this.p2pMgr.getActiveNodes();
             if (activeNodes != null && !activeNodes.isEmpty()) {
+
+                System.out.println("DEBUG: broadcast tx:" + tx.size());
                 for (Map.Entry<Integer, INode> e : activeNodes.entrySet()) {
                     this.p2pMgr.send(e.getKey(), new BroadcastTx((List<ITransaction>) this.tx));
                 }

@@ -100,6 +100,6 @@ public final class ReqStatusHandler extends Handler {
 			}
 		}
 		cacheTs = currTs;
-		this.mgr.send(_nodeIdHashcode, cache);
+		this.mgr.sendP2p(_nodeIdHashcode, cache);
 	}
 }

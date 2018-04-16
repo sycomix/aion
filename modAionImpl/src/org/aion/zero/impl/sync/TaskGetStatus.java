@@ -38,13 +38,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * @author chris
- * long run
+ * @author chris long run
  */
 final class TaskGetStatus implements Runnable {
 
-
-    private final static int intervalTotal = 1000;
+    private final static int intervalTotal = 2000;
 
     private final static int intervalMin = 100;
 
@@ -58,9 +56,12 @@ final class TaskGetStatus implements Runnable {
     private final Logger log;
 
     /**
-     * @param _run      AtomicBoolean
-     * @param _p2p      IP2pMgr
-     * @param _log      Logger
+     * @param _run
+     *            AtomicBoolean
+     * @param _p2p
+     *            IP2pMgr
+     * @param _log
+     *            Logger
      */
     TaskGetStatus(final AtomicBoolean _run, final IP2pMgr _p2p, final Logger _log) {
         this.run = _run;
@@ -75,13 +76,9 @@ final class TaskGetStatus implements Runnable {
 
             try {
                 for (int id : ids) {
-                    p2p.send(id, reqStatus);
-                    Thread.sleep(1000L);
+                    p2p.sendP2p(id, reqStatus);
                 }
-
-                if (ids.isEmpty()) {
-                    Thread.sleep(intervalTotal);
-                }
+                Thread.sleep(intervalTotal);
             } catch (InterruptedException e) {
                 break;
             }

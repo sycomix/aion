@@ -114,6 +114,6 @@ final class TaskGetHeaders implements Runnable {
             log.debug("<get-headers from-num={} size={} node={}>", from, requestMax, node.getIdShort());
         }
         ReqBlocksHeaders rbh = new ReqBlocksHeaders(from, requestMax);
-        this.p2p.send(node.getIdHash(), rbh);
+        this.p2p.sendP2p(node.getIdHash(), rbh);
     }
 }

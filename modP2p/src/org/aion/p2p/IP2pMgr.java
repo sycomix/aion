@@ -36,51 +36,53 @@ import java.util.Map;
  */
 public interface IP2pMgr {
 
-	/**
-	 * @return Map
-	 */
-	Map<Integer, INode> getActiveNodes();
+    /**
+     * @return Map
+     */
+    Map<Integer, INode> getActiveNodes();
 
-	INodeMgr getNodeMgr();
+    INodeMgr getNodeMgr();
 
-	/**
-	 * @param _hs
-	 *            List<Handler>
-	 */
-	void register(final List<Handler> _hs);
+    /**
+     * @param _hs
+     *            List<Handler>
+     */
+    void register(final List<Handler> _hs);
 
-	/**
-	 * @return INode
-	 */
-	INode getRandom();
+    /**
+     * @return INode
+     */
+    INode getRandom();
 
-	/**
-	 * @param _id
-	 *            int
-	 * @param _msg
-	 *            Msg
-	 */
-	void send(int _id, final Msg _msg);
+    /**
+     * @param _id
+     *            int
+     * @param _msg
+     *            Msg
+     */
+    void send(int _id, final Msg _msg);
 
-	/**
-	 * Used to hook up with kernel to shutdown threads in network module
-	 */
-	void shutdown();
+    void sendP2p(int _nodeIdHashcode, final Msg _msg);
 
-	/**
-	 * start all p2p process
-	 */
-	void run();
+    /**
+     * Used to hook up with kernel to shutdown threads in network module
+     */
+    void shutdown();
 
-	void dropActive(Integer _nodeIdHash);
+    /**
+     * start all p2p process
+     */
+    void run();
 
-	List<Short> versions();
+    void dropActive(Integer _nodeIdHash);
 
-	int chainId();
+    List<Short> versions();
 
-	void closeSocket(final SocketChannel _sc);
+    int chainId();
 
-	boolean isShowLog();
+    void closeSocket(final SocketChannel _sc);
 
-	void errCheck(int nodeIdHashcode, String _displayId);
+    boolean isShowLog();
+
+    void errCheck(int nodeIdHashcode, String _displayId);
 }
