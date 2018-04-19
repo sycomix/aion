@@ -145,7 +145,7 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "-v1 over " + this.database.toString();
+        return this.getClass().getSimpleName() + "-v2 over " + this.database.toString();
     }
 
     // IKeyValueStore functionality ------------------------------------------------------------------------------------
@@ -181,13 +181,23 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public void put(byte[] k, byte[] v) {
-        knownEntries.clear();
+        ByteArrayWrapper key = ByteArrayWrapper.wrap(k);
+
+        knownEntries.remove(key);
+
+        // optimization mainly for blocks
+        if (knownEntries.size() > 128) {
+            knownEntries.remove(0);
+        }
+
+        knownEntries.put(key, Optional.of(v));
+
         database.put(k, v);
     }
 
     @Override
     public void delete(byte[] k) {
-        knownEntries.clear();
+        knownEntries.remove(ByteArrayWrapper.wrap(k));
         database.delete(k);
     }
 
