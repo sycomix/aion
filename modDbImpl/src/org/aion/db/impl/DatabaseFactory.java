@@ -29,10 +29,7 @@
 package org.aion.db.impl;
 
 import org.aion.base.db.IByteArrayKeyValueDatabase;
-import org.aion.db.generic.DatabaseWithCache;
-import org.aion.db.generic.LockedDatabase;
-import org.aion.db.generic.SpecialLockedDatabase;
-import org.aion.db.generic.TimedDatabase;
+import org.aion.db.generic.*;
 import org.aion.db.impl.h2.H2MVMap;
 import org.aion.db.impl.leveldb.LevelDB;
 import org.aion.db.impl.leveldb.LevelDBConstants;
@@ -109,9 +106,9 @@ public abstract class DatabaseFactory {
 
         // time operations during debug
         if (debug) {
-            return new TimedDatabase(db);
+            return new TimedDatabase(new CachedReadsDatabase(db));
         } else {
-            return db;
+            return new CachedReadsDatabase(db);
         }
     }
 
@@ -213,8 +210,7 @@ public abstract class DatabaseFactory {
     /**
      * @return A database implementation based on a driver implementing the {@link IDriver} interface.
      */
-    public static IByteArrayKeyValueDatabase connect(String driverName,
-                                                     Properties info) {
+    public static IByteArrayKeyValueDatabase connect(String driverName, Properties info) {
         try {
             // see if the given name is a valid driver
             IDriver driver = ((Class<? extends IDriver>) Class.forName(driverName)).getDeclaredConstructor()
@@ -240,9 +236,7 @@ public abstract class DatabaseFactory {
         return Boolean.parseBoolean(info.getProperty(prop));
     }
 
-    private static int getInt(Properties info,
-                              String prop,
-                              int defaultValue) {
+    private static int getInt(Properties info, String prop, int defaultValue) {
         return Integer.parseInt(info.getProperty(prop, String.valueOf(defaultValue)));
     }
 }
