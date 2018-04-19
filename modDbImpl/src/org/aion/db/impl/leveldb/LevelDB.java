@@ -260,7 +260,6 @@ public class LevelDB extends AbstractDB {
 
     @Override
     public byte[] getInternal(byte[] k) {
-        LOG.debug(getName().get() + " -> value NOT from READ CACHE");
         return db.get(k);
     }
 
