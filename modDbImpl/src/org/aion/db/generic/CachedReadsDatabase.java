@@ -34,13 +34,20 @@
  ******************************************************************************/
 package org.aion.db.generic;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.aion.base.db.IByteArrayKeyValueDatabase;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 /**
  * @author Alexandra Roatis
@@ -53,11 +60,42 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
     protected IByteArrayKeyValueDatabase database;
 
     /** Keeps track of the entries that have been modified. */
-    private Map<ByteArrayWrapper, Optional<byte[]>> knownEntries;
+    private LoadingCache<ByteArrayWrapper, Optional<byte[]>> loadingCache = null;
 
     public CachedReadsDatabase(IByteArrayKeyValueDatabase _database) {
         database = _database;
-        knownEntries = new HashMap<>();
+    }
+
+    /**
+     * Assists in setting up the underlying cache for the current instance.
+     *
+     * @param size
+     * @param enableStats
+     */
+    private void setupLoadingCache(final long size, final boolean enableStats) {
+        // Use CacheBuilder to create the cache.
+        CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder();
+
+        // Set the size.
+        // Actually when size is 0, we make it unbounded
+        if (size != 0) {
+            builder.maximumSize(size);
+        }
+
+        // Enable stats if passed in.
+        if (enableStats) {
+            builder.recordStats();
+        }
+
+        // Utilize CacheBuilder and pass in the parameters to create the cache.
+        this.loadingCache = builder.build(new CacheLoader<ByteArrayWrapper, Optional<byte[]>>() {
+            @Override
+            public Optional<byte[]> load(ByteArrayWrapper keyToLoad) {
+                // It is safe to say keyToLoad is not null or the data is null.
+                // Load from the data source.
+                return database.get(keyToLoad.getData());
+            }
+        });
     }
 
     /**
@@ -79,7 +117,15 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
         if (isOpen()) {
             return true;
         }
-        return database.open();
+
+        boolean open = database.open();
+
+        // setup cache only id database was opened successfully
+        if (open) {
+            setupLoadingCache(1024, true);
+        }
+
+        return open;
     }
 
     @Override
@@ -88,13 +134,14 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
             // close database
             database.close();
         } finally {
-            knownEntries.clear();
+            // clear the cache
+            loadingCache.invalidateAll();
         }
     }
 
     @Override
     public boolean commit() {
-        knownEntries.clear();
+        loadingCache.invalidateAll();
         return database.commit();
     }
 
@@ -145,14 +192,14 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "-v2 over " + this.database.toString();
+        return this.getClass().getSimpleName() + "-v3 over " + this.database.toString();
     }
 
     // IKeyValueStore functionality ------------------------------------------------------------------------------------
 
     @Override
     public boolean isEmpty() {
-        if (knownEntries.size() > 0) {
+        if (loadingCache.size() > 0) {
             return false;
         } else {
             return database.isEmpty();
@@ -166,44 +213,34 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public Optional<byte[]> get(byte[] k) {
-        ByteArrayWrapper key = ByteArrayWrapper.wrap(k);
+        Optional<byte[]> val;
 
-        if (knownEntries.size() > 0 && knownEntries.containsKey(key)) {
-            LOG.debug(getName().get() + " -> value from READ CACHE");
-            return knownEntries.get(key);
+        try {
+            val = loadingCache.get(ByteArrayWrapper.wrap(k));
+            LOG.debug(getName().get() + " > " + loadingCache.stats().toString());
+        } catch (ExecutionException e) {
+            LOG.error(getName().get() + " -> Cannot load from cache.", e);
+            return database.get(k);
         }
 
-        Optional<byte[]> value = database.get(k);
-        knownEntries.put(key, value);
-
-        return value;
+        return val;
     }
 
     @Override
     public void put(byte[] k, byte[] v) {
-        ByteArrayWrapper key = ByteArrayWrapper.wrap(k);
-
-        knownEntries.remove(key);
-
-        // optimization mainly for blocks
-        if (knownEntries.size() > 128) {
-            knownEntries.remove(0);
-        }
-
-        knownEntries.put(key, Optional.of(v));
-
+        loadingCache.put(ByteArrayWrapper.wrap(k), Optional.of(v));
         database.put(k, v);
     }
 
     @Override
     public void delete(byte[] k) {
-        knownEntries.remove(ByteArrayWrapper.wrap(k));
+        loadingCache.invalidate(ByteArrayWrapper.wrap(k));
         database.delete(k);
     }
 
     @Override
     public void putBatch(Map<byte[], byte[]> inputMap) {
-        knownEntries.clear();
+        loadingCache.invalidateAll();
         database.putBatch(inputMap);
     }
 
@@ -214,19 +251,19 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public void commitBatch() {
-        knownEntries.clear();
+        loadingCache.invalidateAll();
         database.commitBatch();
     }
 
     @Override
     public void deleteBatch(Collection<byte[]> keys) {
-        knownEntries.clear();
+        loadingCache.invalidateAll();
         database.deleteBatch(keys);
     }
 
     @Override
     public void drop() {
-        knownEntries.clear();
+        loadingCache.invalidateAll();
         database.drop();
     }
 }
