@@ -106,9 +106,9 @@ public abstract class DatabaseFactory {
 
         // time operations during debug
         if (debug) {
-            return new TimedDatabase(new CachedReadsDatabaseV2(db));
+            return new TimedDatabase(new CachedReadsDatabaseV2(db, getInt(info, Props.MAX_HEAP_CACHE_SIZE, 1024)));
         } else {
-            return new CachedReadsDatabaseV2(db);
+            return new CachedReadsDatabaseV2(db, getInt(info, Props.MAX_HEAP_CACHE_SIZE, 1024));
         }
     }
 
