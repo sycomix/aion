@@ -176,7 +176,7 @@ public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
         }
 
         if (knownEntries.size() > maxSize) {
-            knownEntries.remove(0);
+            knownEntries.clear();
         }
 
         Optional<byte[]> value = database.get(k);
@@ -192,7 +192,7 @@ public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
         knownEntries.remove(key);
 
         if (knownEntries.size() > maxSize) {
-            knownEntries.remove(0);
+            knownEntries.clear();
         }
 
         knownEntries.put(key, Optional.of(v));
