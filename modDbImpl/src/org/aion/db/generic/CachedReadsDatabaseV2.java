@@ -53,12 +53,12 @@ public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
     protected IByteArrayKeyValueDatabase database;
 
     /** Keeps track of the entries that have been modified. */
-    private Map<ByteArrayWrapper, Optional<byte[]>> knownEntries;
+    private LinkedHashMap<ByteArrayWrapper, Optional<byte[]>> knownEntries;
     private int maxSize;
 
     public CachedReadsDatabaseV2(IByteArrayKeyValueDatabase _database, int _maxSize) {
         database = _database;
-        knownEntries = new HashMap<>();
+        knownEntries = new LinkedHashMap<>();
         maxSize = _maxSize;
     }
 
@@ -176,7 +176,7 @@ public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
         }
 
         if (knownEntries.size() > maxSize) {
-            knownEntries.clear();
+            knownEntries.remove(knownEntries.keySet().iterator().next());
         }
 
         Optional<byte[]> value = database.get(k);
@@ -192,7 +192,7 @@ public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
         knownEntries.remove(key);
 
         if (knownEntries.size() > maxSize) {
-            knownEntries.clear();
+            knownEntries.remove(knownEntries.keySet().iterator().next());
         }
 
         knownEntries.put(key, Optional.of(v));
