@@ -106,9 +106,9 @@ public abstract class DatabaseFactory {
 
         // time operations during debug
         if (debug) {
-            return new TimedDatabase(new CachedReadsDatabase(db));
+            return new TimedDatabase(new CachedReadsDatabaseV2(db));
         } else {
-            return new CachedReadsDatabase(db);
+            return new CachedReadsDatabaseV2(db);
         }
     }
 

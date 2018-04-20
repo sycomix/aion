@@ -38,18 +38,14 @@ import org.aion.base.db.IByteArrayKeyValueDatabase;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
-import org.apache.commons.collections4.map.LRUMap;
 import org.slf4j.Logger;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author Alexandra Roatis
  */
-public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
+public class CachedReadsDatabaseV2 implements IByteArrayKeyValueDatabase {
 
     private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.DB.name());
 
@@ -57,10 +53,11 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
     protected IByteArrayKeyValueDatabase database;
 
     /** Keeps track of the entries that have been modified. */
-    private final LRUMap<ByteArrayWrapper, Optional<byte[]>> loadingCache = new LRUMap<>(1024);
+    private Map<ByteArrayWrapper, Optional<byte[]>> knownEntries;
 
-    public CachedReadsDatabase(IByteArrayKeyValueDatabase _database) {
+    public CachedReadsDatabaseV2(IByteArrayKeyValueDatabase _database) {
         database = _database;
+        knownEntries = new HashMap<>();
     }
 
     /**
@@ -82,7 +79,6 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
         if (isOpen()) {
             return true;
         }
-
         return database.open();
     }
 
@@ -92,14 +88,13 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
             // close database
             database.close();
         } finally {
-            // clear the cache
-            loadingCache.clear();
+            knownEntries.clear();
         }
     }
 
     @Override
     public boolean commit() {
-        loadingCache.clear();
+        knownEntries.clear();
         return database.commit();
     }
 
@@ -150,14 +145,14 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public String toString() {
-        return this.getClass().getSimpleName() + "-v4 over " + this.database.toString();
+        return this.getClass().getSimpleName() + "-v2 over " + this.database.toString();
     }
 
     // IKeyValueStore functionality ------------------------------------------------------------------------------------
 
     @Override
     public boolean isEmpty() {
-        if (loadingCache.size() > 0) {
+        if (knownEntries.size() > 0) {
             return false;
         } else {
             return database.isEmpty();
@@ -173,13 +168,13 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
     public Optional<byte[]> get(byte[] k) {
         ByteArrayWrapper key = ByteArrayWrapper.wrap(k);
 
-        if (loadingCache.size() > 0 && loadingCache.containsKey(key)) {
-            LOG.debug(getName().get() + " -> value from READ CACHE");
-            return loadingCache.get(key);
+        if (knownEntries.size() > 0 && knownEntries.containsKey(key)) {
+            LOG.debug(getName().get() + " -> value from READ CACHE size = " + knownEntries.size());
+            return knownEntries.get(key);
         }
 
         Optional<byte[]> value = database.get(k);
-        loadingCache.put(key, value);
+        knownEntries.put(key, value);
 
         return value;
     }
@@ -188,21 +183,26 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
     public void put(byte[] k, byte[] v) {
         ByteArrayWrapper key = ByteArrayWrapper.wrap(k);
 
-        loadingCache.remove(key);
-        loadingCache.put(key, Optional.of(v));
+        knownEntries.remove(key);
+
+        if (knownEntries.size() > 1024) {
+            knownEntries.remove(0);
+        }
+
+        knownEntries.put(key, Optional.of(v));
 
         database.put(k, v);
     }
 
     @Override
     public void delete(byte[] k) {
-        loadingCache.remove(ByteArrayWrapper.wrap(k));
+        knownEntries.remove(ByteArrayWrapper.wrap(k));
         database.delete(k);
     }
 
     @Override
     public void putBatch(Map<byte[], byte[]> inputMap) {
-        loadingCache.clear();
+        knownEntries.clear();
         database.putBatch(inputMap);
     }
 
@@ -213,19 +213,19 @@ public class CachedReadsDatabase implements IByteArrayKeyValueDatabase {
 
     @Override
     public void commitBatch() {
-        loadingCache.clear();
+        knownEntries.clear();
         database.commitBatch();
     }
 
     @Override
     public void deleteBatch(Collection<byte[]> keys) {
-        loadingCache.clear();
+        knownEntries.clear();
         database.deleteBatch(keys);
     }
 
     @Override
     public void drop() {
-        loadingCache.clear();
+        knownEntries.clear();
         database.drop();
     }
 }
