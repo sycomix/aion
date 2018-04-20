@@ -104,6 +104,10 @@ public final class P2pMgr implements IP2pMgr {
         INBOUND, OUTBOUND, ACTIVE;
     }
 
+    public String getConnection() {
+        return this.selfPort + "";
+    }
+
     private static class MsgOut {
         MsgOut(int _nid, Msg _msg, Dest _dst) {
             nid = _nid;
@@ -138,8 +142,8 @@ public final class P2pMgr implements IP2pMgr {
 
     private AtomicBoolean start = new AtomicBoolean(true);
 
-    private static ReqHandshake1 cachedReqHandshake1;
-    private static ResHandshake1 cachedResHandshake1;
+    private ReqHandshake1 cachedReqHandshake1;
+    private ResHandshake1 cachedResHandshake1;
 
     private final class TaskInbound implements Runnable {
         @Override
@@ -424,8 +428,8 @@ public final class P2pMgr implements IP2pMgr {
                 }
 
                 if (nodeMgr.activeNodesSize() >= maxActiveNodes) {
-                    if (showLog)
-                        System.out.println("<p2p-tcp-connect-peer pass max-active-nodes>");
+                    //if (showLog)
+                        //System.out.println("<p2p-tcp-connect-peer pass max-active-nodes>");
 
                     try {
                         Thread.sleep(1000);
@@ -498,6 +502,7 @@ public final class P2pMgr implements IP2pMgr {
                         if (showLog)
                             System.out.println("<p2p action=connect-outbound addr=" + node.getIpStr() + ":" + _port
                                     + " result=failed>");
+                        e.printStackTrace();
                         node.peerMetric.incFailedCount();
                     }
                 }
@@ -1109,5 +1114,9 @@ public final class P2pMgr implements IP2pMgr {
     private void ban(int nodeIdHashcode) {
         nodeMgr.ban(nodeIdHashcode);
         nodeMgr.dropActive(nodeIdHashcode, this);
+    }
+
+    public String getNodeId() {
+        return this.selfShortId;
     }
 }

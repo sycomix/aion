@@ -36,7 +36,7 @@ import java.util.List;
  * @author chris
  * used by imported headers on sync mgr
  */
-final class HeadersWrapper {
+public final class HeadersWrapper {
 
     private int nodeIdHash;
 
@@ -61,14 +61,14 @@ final class HeadersWrapper {
     /**
      * @return int - node id hash
      */
-    int getNodeIdHash(){
+    public int getNodeIdHash(){
         return this.nodeIdHash;
     }
 
     /**
      * @return String - node display id
      */
-    String getDisplayId() { return this.displayId; }
+    public String getDisplayId() { return this.displayId; }
 
     /**
      * @return long
@@ -81,7 +81,7 @@ final class HeadersWrapper {
     /**
      * @return List
      */
-    List<A0BlockHeader> getHeaders(){
+    public List<A0BlockHeader> getHeaders(){
         return this.headers;
     }
 

@@ -79,4 +79,8 @@ public interface IP2pMgr {
 	boolean isShowLog();
 
 	void errCheck(int nodeIdHashcode, String _displayId);
+
+	String getConnection();
+
+	String getNodeId();
 }

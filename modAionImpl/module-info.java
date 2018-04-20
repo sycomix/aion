@@ -25,4 +25,6 @@ module aion.zero.impl {
     exports org.aion.zero.impl.cli;
     exports org.aion.zero.impl.db;
     exports org.aion.zero.impl.sync;
+    exports org.aion.zero.impl.sync.msg;
+
 }

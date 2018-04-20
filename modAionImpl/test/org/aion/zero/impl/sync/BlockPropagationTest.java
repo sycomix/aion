@@ -135,7 +135,13 @@ public class BlockPropagationTest {
         }
 
         @Override
+        public String getConnection() { return ""; }
+
+        @Override
         public void closeSocket(final SocketChannel _sc, String _reason) { }
+
+        @Override
+        public String getNodeId() { return ""; }
     }
 
     private static List<ECKey> generateDefaultAccounts() {
