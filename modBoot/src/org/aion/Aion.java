@@ -32,6 +32,7 @@ import org.aion.crypto.HashUtil;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.aion.p2p.Handler;
+import org.aion.p2p.IP2pMgr;
 import org.aion.p2p.P2pConstant;
 import org.aion.p2p.impl1.P2pMgr;
 import org.aion.types.*;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -268,11 +270,22 @@ public class Aion {
 
     public static class OutboundTest {
 
-        AtomicLong status_sent;
+        // inbound
+        AtomicLong status_req;
         AtomicLong status_recv;
-        AtomicLong bodies_sent;
+        AtomicLong status_recv_time;
+
+        AtomicLong bodies_req;
         AtomicLong bodies_recv;
+        AtomicLong bodies_recv_time;
+
+        AtomicLong header_req;
+        AtomicLong header_recv;
+        AtomicLong header_recv_time;
+
+        // outbound
         AtomicLong bodies_pushed;
+
         P2pMgr peer;
 
         List<byte[]> hash_bytes;
@@ -289,10 +302,19 @@ public class Aion {
                             AionBlock genesis,
                             List<byte[]> hash_bytes,
                             ResBlocksBodies bb_send) {
-            status_sent = new AtomicLong(0);
+
+            status_req = new AtomicLong(0);
             status_recv = new AtomicLong(0);
-            bodies_sent = new AtomicLong(0);
+            status_recv_time = new AtomicLong(-1);
+
+            bodies_req = new AtomicLong(0);
             bodies_recv = new AtomicLong(0);
+            bodies_recv_time = new AtomicLong(-1);
+
+            header_req = new AtomicLong(0);
+            header_recv = new AtomicLong(0);
+            header_recv_time = new AtomicLong(-1);
+
             bodies_pushed = new AtomicLong(0);
 
             this.hash_bytes = hash_bytes;
@@ -325,17 +347,18 @@ public class Aion {
 
             // respond to status request to play nice and not get banned
             cbs.add(new ReqStatusHandlerMock(log, port, peer, genesis));
-            cbs.add(new ResStatusHandlerMock(log, port, status_recv));
-            cbs.add(new ResBlockBodiesHandlerMock(log, port, peer, 6418667, bodies_recv));
+            cbs.add(new ResStatusHandlerMock(log, port, status_recv, status_recv_time));
+            cbs.add(new ResBlockBodiesHandlerMock(log, port, peer, bodies_recv, bodies_recv_time));
+            cbs.add(new ResBlockHeadersHandlerMock(log, port, peer, bodies_req, header_recv, header_recv_time));
             peer.register(cbs);
         }
 
         public void start() {
             peer.run();
-            new Thread(new TaskGetStatusMock(log, port, peer, interval_status, status_sent), "getStatus-"+port).start();
+            new Thread(new TaskGetStatusMock(log, port, peer, interval_status, status_req), "getStatus-"+port).start();
 
             if (enable_inbound)
-                new Thread(new TaskGetBodiesMock(log, port, peer, interval_inbound, hash_bytes, bodies_sent), "getBodies-"+port).start();
+                new Thread(new TaskGetHeadersMock(log, port, peer, interval_inbound, header_req, latestTargetBlock), "getHeaders-"+port).start();
 
             if (enable_outbound)
                 new Thread(new TaskSendBodiesMock(log, port, peer, interval_outbound, bb_send, bodies_pushed), "sendBodies-"+port).start();
@@ -343,11 +366,13 @@ public class Aion {
         }
     }
 
-    public static int interval_inbound;
-    public static int interval_status;
-    public static int interval_outbound;
-    public static boolean enable_outbound;
-    public static boolean enable_inbound;
+    public static int interval_status = 5000;
+    public static int interval_inbound = 5000;
+    public static int interval_outbound = 10000;
+
+    public static boolean enable_outbound = false;
+    public static boolean enable_inbound = false;
+    public static int latestTargetBlock = 200;
 
 
     public static void main(String args[]) throws InterruptedException {
@@ -364,11 +389,9 @@ public class Aion {
         }
 
         int start_port = 30305;
-        int count = 5;
-        String ip = "0.0.0.0";
+        int count = 10;
+        String ip = "127.0.0.1";
         String connection = "p2p://c33d391d-a86d-408c-b6f7-13b1c1e810d7@13.95.218.95:30303";
-        enable_outbound = false;
-        enable_inbound = false;
 
         if (args != null && args.length > 0) {
             for (int i=0; i< args.length; i++) {
@@ -415,6 +438,10 @@ public class Aion {
                                 enable_inbound = true;
                         }
                         break;
+                    case 9:
+                        if (args[9] != null)
+                            latestTargetBlock = Integer.parseInt(args[9] + "");
+                        break;
                 }
             }
         }
@@ -453,7 +480,6 @@ public class Aion {
         AionBlock block;
         int out = 0;
 
-        // read from cache, then block store
         for (int i=0; i<300; i++) {
             block = bc.getBlockByNumber(i);
             byte[] blockBytesForadd = block.getEncodedBody();
@@ -480,15 +506,22 @@ public class Aion {
         }
 
         while (true) {
+            long now = Instant.now().getEpochSecond();
             log.info ("------------------------------------------------------------------------");
             for(OutboundTest test : tests) {
-                log.info ("<connection[{}] {} = peers: {}, status: {}/{}, bodies: {}/{} outbound: {} >",
+                long status_recv_time = test.status_recv_time.get();
+                long bodies_recv_time = test.bodies_recv_time.get();
+                long header_recv_time = test.header_recv_time.get();
+
+                log.info ("<connection[{}] {} = peers: {}, status: {}/{}/{}, bodies: {}/{}/{}, header: {}/{}/{}, outbound: {} >",
                         test.peer.getNodeId(), test.peer.getConnection(), test.peer.getActiveNodes().size(),
-                        test.status_sent.get(), test.status_recv.get(),
-                        test.bodies_sent.get(), test.status_recv.get(), test.bodies_pushed.get()
+                        test.status_req.get(), test.status_recv.get(), status_recv_time == -1 ? -1 : now-status_recv_time,
+                        test.bodies_req.get(), test.bodies_recv.get(), bodies_recv_time == -1 ? -1 : now-bodies_recv_time,
+                        test.header_req.get(), test.header_recv.get(), header_recv_time == -1 ? -1 : now-header_recv_time,
+                        test.bodies_pushed.get()
                 );
             }
-            Thread.sleep(3500);
+            Thread.sleep(5000);
         }
 
     }

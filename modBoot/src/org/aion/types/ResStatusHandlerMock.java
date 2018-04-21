@@ -8,6 +8,7 @@ import org.aion.zero.impl.sync.Act;
 import org.aion.zero.impl.sync.msg.ResStatus;
 import org.slf4j.Logger;
 
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class ResStatusHandlerMock extends Handler {
@@ -15,12 +16,14 @@ public final class ResStatusHandlerMock extends Handler {
     private final Logger log;
     private final int mockId;
     private final AtomicLong recv;
+    private final AtomicLong recv_time;
 
-    public ResStatusHandlerMock(final Logger _log, int mockId, AtomicLong recv) {
+    public ResStatusHandlerMock(final Logger _log, int mockId, AtomicLong recv, AtomicLong recv_time) {
         super(Ver.V0, Ctrl.SYNC, Act.RES_STATUS);
         this.log = _log;
         this.mockId = mockId;
         this.recv = recv;
+        this.recv_time = recv_time;
     }
 
     @Override
@@ -42,5 +45,6 @@ public final class ResStatusHandlerMock extends Handler {
         // success?
         log.debug("<res-status node={} best-blk={}>", _nodeIdHashcode, rs.getBestBlockNumber());
         recv.getAndIncrement();
+        recv_time.set(Instant.now().getEpochSecond());
     }
 }

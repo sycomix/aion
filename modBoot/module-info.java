@@ -10,6 +10,7 @@ module aion.boot {
     requires  aion.p2p;
     requires aion.p2p.impl;
     requires aion.base;
+    requires aion.zero;
 
     exports org.aion;
 }
