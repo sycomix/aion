@@ -33,11 +33,7 @@ import java.util.regex.Pattern;
 import org.aion.p2p.INode;
 
 /*
- *
  * @author Chris
- * p2p://{node-id}@{ip}:{port}
- * node-id could be any non-empty string update to 36 bytes
- *
  */
 public final class Node implements INode {
 

@@ -66,12 +66,9 @@ class ChannelBuffer {
 
 	private byte[] body = null;
 
-	/**
-	 * write flag
-	 */
 	AtomicBoolean onWrite = new AtomicBoolean(false);
 
-	BlockingQueue<Msg> outQueue;
+    ArrayBlockingQueue<Msg> outQueue;
 
 	ChannelBuffer(boolean _showLog, int _messageSize){
 	    this.showLog = _showLog;

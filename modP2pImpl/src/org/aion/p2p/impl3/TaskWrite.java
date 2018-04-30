@@ -30,14 +30,14 @@ import org.aion.p2p.Msg;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author chris
  */
 public class TaskWrite implements Runnable {
 
-	private ExecutorService workers;
+	private ThreadPoolExecutor workers;
 	private boolean showLog;
 	private String nodeShortId;
 	private SocketChannel sc;
@@ -53,7 +53,7 @@ public class TaskWrite implements Runnable {
 	 * @param _cb ChannelBuffer
 	 */
 	TaskWrite(
-			final ExecutorService _workers,
+			final ThreadPoolExecutor _workers,
 			boolean _showLog,
 			String _nodeShortId,
 			final SocketChannel _sc,
@@ -96,18 +96,22 @@ public class TaskWrite implements Runnable {
 				}
 			} finally {
 				this.channelBuffer.onWrite.set(false);
-                Msg msg = this.channelBuffer.messages.poll();
+                Msg msg = this.channelBuffer.outQueue.poll();
                 if (msg != null) {
                     //System.out.println("write " + h.getCtrl() + "-" + h.getAction());
                     workers.submit(new TaskWrite(workers, showLog, nodeShortId, sc, msg, channelBuffer));
                 }
 			}
 		} else {
-			boolean success = this.channelBuffer.messages.offer(msg);
-			if(showLog)
-			    System.out.println(
-                    "<p2p-task-write add-msg=" + (success ? "true" : "false") +
-                    " channel-messages-size=" + this.channelBuffer.messages.size() + "/" + ChannelBuffer.messagesSize + ">");
+			try {
+				boolean success = this.channelBuffer.outQueue.offer(msg);
+				if (showLog)
+					System.out.println(
+							"<p2p-task-write add-msg=" + (success ? "true" : "false") +
+									" channel-messages-size=" + this.channelBuffer.outQueue.size() + ">");
+			} catch (Exception e){
+				e.printStackTrace();
+			}
 		}
 	}
 }
