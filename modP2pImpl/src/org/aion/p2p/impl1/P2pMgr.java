@@ -935,12 +935,13 @@ public final class P2pMgr implements IP2pMgr {
                         node.refreshTimestamp();
                         ResActiveNodes resActiveNodes = ResActiveNodes.decode(_msgBytes);
                         if (resActiveNodes != null) {
-                            List<Node> incomingNodes = resActiveNodes.getNodes();
-                            for (Node incomingNode : incomingNodes) {
+                            List<INode> incomingNodes = resActiveNodes.getNodes();
+                            for (INode incomingNode : incomingNodes) {
                                 if (nodeMgr.tempNodesSize() >= this.maxTempNodes)
                                     return;
-                                if (validateNode(incomingNode))
-                                    nodeMgr.addTempNode(incomingNode);
+                                Node n = (Node)incomingNode;
+                                if (validateNode(n))
+                                    nodeMgr.addTempNode(n);
                             }
                         }
                     }

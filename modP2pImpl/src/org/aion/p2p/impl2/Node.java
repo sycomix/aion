@@ -23,9 +23,10 @@
  *
  */
 
-package org.aion.p2p.impl3;
+package org.aion.p2p.impl2;
 
 import java.math.BigInteger;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
@@ -78,14 +79,15 @@ public final class Node implements INode {
     /**
      * constructor for initial stage of connections from network
      */
-    Node(int _channelId, String _ipStr, int port) {
+    Node(final SocketChannel _channel, String _ipStr) {
         this.fromBootList = false;
-        this.channelId = _channelId;
+        this.channelId = _channel.hashCode();
         this.ip = ipStrToBytes(_ipStr);
         this.ipStr = _ipStr;
-        this.port = port;
+        this.port = 0;
         this.timestamp = System.currentTimeMillis();
         this.bestBlockNumber = 0L;
+        this.channel = _channel;
     }
 
     /**
@@ -214,7 +216,7 @@ public final class Node implements INode {
     /**
      * @return boolean
      */
-    boolean getIfFromBootList() {
+    public boolean getIfFromBootList() {
         return this.fromBootList;
     }
 
@@ -276,6 +278,8 @@ public final class Node implements INode {
     public long getBestBlockNumber() {
         return this.bestBlockNumber;
     }
+
+    public byte[] getBestBlockHash() { return this.bestBlockHash; }
 
     @Override
     public BigInteger getTotalDifficulty() {

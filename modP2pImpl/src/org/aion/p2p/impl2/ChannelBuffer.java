@@ -22,7 +22,7 @@
  * Aion foundation.
  *
  */
-package org.aion.p2p.impl3;
+package org.aion.p2p.impl2;
 
 import org.aion.p2p.Header;
 import org.aion.p2p.Msg;
@@ -31,7 +31,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -54,17 +53,19 @@ class ChannelBuffer {
 
     private boolean showLog;
 
-    private int nodeIdHash = 0;
+    int nodeIdHash = 0;
 
-    private String displayId = "";
+    String displayId = "";
 
-	private ByteBuffer headerBuf = ByteBuffer.allocate(Header.LEN);
+    int channelId = 0;
 
-	private ByteBuffer bodyBuf = null;
+	ByteBuffer headerBuf = ByteBuffer.allocate(Header.LEN);
 
-	private Header header = null;
+	ByteBuffer bodyBuf = null;
 
-	private byte[] body = null;
+	Header header = null;
+
+	byte[] body = null;
 
 	AtomicBoolean onWrite = new AtomicBoolean(false);
 
@@ -79,16 +80,8 @@ class ChannelBuffer {
 	    this.nodeIdHash = _nodeIdHash;
     }
 
-    void setDisplayId(String _displayId){
-        this.displayId = _displayId;
-    }
-
     int getNodeIdHash(){
         return this.nodeIdHash;
-    }
-
-    String getDisplayId(){
-        return this.displayId;
     }
 
     /**

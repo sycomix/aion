@@ -23,7 +23,7 @@
  *
  */
 
-package org.aion.p2p.impl3;
+package org.aion.p2p.impl2;
 
 /**
  * @author chris

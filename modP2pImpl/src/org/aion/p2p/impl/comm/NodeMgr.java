@@ -189,7 +189,7 @@ public class NodeMgr implements INodeMgr {
         return n;
     }
 
-    public List<Node> getActiveNodesList() {
+    public List<INode> getActiveNodesList() {
         return new ArrayList(activeNodes.values());
     }
 

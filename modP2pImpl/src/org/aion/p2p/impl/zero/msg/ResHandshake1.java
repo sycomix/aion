@@ -39,16 +39,16 @@ public final class ResHandshake1 extends ResHandshake {
     // success(byte) + binary version len (byte)
     private static final int MIN_LEN = 2;
 
-    private String binaryVersion;
+    private String binaryRevision;
 
     public ResHandshake1(boolean _success, String _binaryVersion) {
         super(_success);
         // utf-8
-        this.binaryVersion = _binaryVersion.length() > 63 ? _binaryVersion.substring(0, 62) : _binaryVersion;
+        this.binaryRevision = _binaryVersion.length() > 63 ? _binaryVersion.substring(0, 62) : _binaryVersion;
     }
 
     public String getBinaryVersion() {
-        return this.binaryVersion;
+        return this.binaryRevision;
     }
 
     public static ResHandshake1 decode(final byte[] _bytes) {
@@ -85,7 +85,7 @@ public final class ResHandshake1 extends ResHandshake {
     @Override
     public byte[] encode() {
         byte[] superBytes = super.encode();
-        byte[] binaryVersionBytes = this.binaryVersion.getBytes();
+        byte[] binaryVersionBytes = this.binaryRevision.getBytes();
         int len = binaryVersionBytes.length;
         if(len > Byte.MAX_VALUE){
             binaryVersionBytes = Arrays.copyOfRange(binaryVersionBytes, 0 , Byte.MAX_VALUE - 1);
