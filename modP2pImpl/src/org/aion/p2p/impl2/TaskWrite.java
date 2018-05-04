@@ -45,12 +45,12 @@ public class TaskWrite implements Runnable {
 	private ChannelBuffer channelBuffer;
 
 	/**
-	 * @param _writeWorkers ExecutorService
-	 * @param _showLog boolean
-	 * @param _nodeShortId String
-	 * @param _sc SocketChannel
-	 * @param _msg Msg
-	 * @param _cb ChannelBuffer
+	 * @param _writeWorkers    ExecutorService
+	 * @param _showLog         boolean
+	 * @param _nodeShortId     String
+	 * @param _sc              SocketChannel
+	 * @param _msg             Msg
+	 * @param _cb              ChannelBuffer
 	 */
 	TaskWrite(
 			final ThreadPoolExecutor _writeWorkers,
@@ -92,25 +92,32 @@ public class TaskWrite implements Runnable {
 				}
 			} catch (IOException e) {
 				if (showLog) {
-					System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">");
+					System.out.println("<p2p-write io-exception=" + e.getMessage() + " node=" + this.nodeShortId + ">");
 				}
 			} catch (Exception e){
-			    System.out.println("write exeception -> " + e.getMessage());
-			    e.printStackTrace();
+			    if(showLog)
+			        System.out.println("<p2p-write exeception=" + e.getMessage() + " node=" + this.nodeShortId + ">");
             } finally {
 				this.channelBuffer.onWrite.set(false);
                 Msg msg = this.channelBuffer.outQueue.poll();
-                if (msg != null) {
+                if (msg != null)
                     writeWorkers.submit(new TaskWrite(writeWorkers, showLog, nodeShortId, sc, msg, channelBuffer));
-                }
 			}
 		} else {
 			try {
 				boolean success = this.channelBuffer.outQueue.offer(msg);
-				if (showLog)
-					System.out.println(
-							"<p2p-task-write node=" + this.channelBuffer.displayId + " queue-msg=" + (success ? "true" : "false") +
-									" queue-size=" + this.channelBuffer.outQueue.size() + ">");
+				if (showLog){
+				    if(success)
+                        System.out.println(
+                            "<p2p-write node=" + this.channelBuffer.displayId +
+                            " msg-queued queue-size=" + this.channelBuffer.outQueue.size() + ">"
+                        );
+                    else
+                        System.out.println(
+                            "<p2p-write node=" + this.channelBuffer.displayId +
+                            " msg-dropped queue-size=" + this.channelBuffer.outQueue.size() + ">"
+                        );
+                }
 			} catch (Exception e){
 				e.printStackTrace();
 			}

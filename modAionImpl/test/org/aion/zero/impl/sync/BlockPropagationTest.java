@@ -81,6 +81,11 @@ public class BlockPropagationTest {
         }
 
         @Override
+        public void refreshTimestamp() {
+
+        }
+
+        @Override
         public String getBinaryVersion() {
             return "";
         }

@@ -43,8 +43,6 @@ public final class Node implements INode {
 
 	private boolean fromBootList;
 
-	private int channelId;
-
 	private byte[] id; // 36 bytes
 
 	private String idShort;
@@ -98,7 +96,6 @@ public final class Node implements INode {
 	 */
 	public Node(final SocketChannel _channel, String _ipStr) {
 		this.fromBootList = false;
-		this.channelId = _channel.hashCode();
 		this.ip = ipStrToBytes(_ipStr);
 		this.ipStr = _ipStr;
 		this.port = 0;

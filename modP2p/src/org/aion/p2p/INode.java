@@ -76,6 +76,8 @@ public interface INode {
 
     long getTimestamp();
 
+    void refreshTimestamp();
+
     /**
      * @param _bestBlockNumber long
      * @param _bestBlockHash byte[]
