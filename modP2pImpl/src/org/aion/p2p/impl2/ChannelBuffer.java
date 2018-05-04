@@ -76,14 +76,6 @@ class ChannelBuffer {
 	    this.outQueue = new ArrayBlockingQueue<>(_messageSize);
     }
 
-    void setNodeIdHash(int _nodeIdHash){
-	    this.nodeIdHash = _nodeIdHash;
-    }
-
-    int getNodeIdHash(){
-        return this.nodeIdHash;
-    }
-
     /**
      * @param _route          int
      * @param _maxReqsPerSec  int requests within 1 s

@@ -33,36 +33,23 @@ import java.util.regex.Pattern;
 import org.aion.p2p.INode;
 
 /*
- *
  * @author Chris
- * p2p://{node-id}@{ip}:{port}
- * node-id could be any non-empty string update to 36 bytes
- *
  */
 public final class Node implements INode {
 
-	private static final String REGEX_PROTOCOL = "^p2p://"; // Protocol eg. p2p://
-	private static final String REGEX_NODE_ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"; // Node-Id
-																												// eg.
-																												// 3e2cab6a-09dd-4771-b28d-6aa674009796
-	private static final String REGEX_IPV4 = "(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])"; // Ip
-																															// eg.
-																															// 127.0.0.1
-	private static final String REGEX_PORT = "[0-9]+$"; // Port eg. 30303
-	private static final Pattern PATTERN_P2P = Pattern
-			.compile(REGEX_PROTOCOL + REGEX_NODE_ID + "@" + REGEX_IPV4 + ":" + REGEX_PORT);
+	private static final Pattern PATTERN_P2P = Pattern.compile("^p2p://[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5]):[0-9]+$");
+
 	private static final int SIZE_BYTES_IPV4 = 8;
 
 	private boolean fromBootList;
 
+	private int channelId;
+
 	private byte[] id; // 36 bytes
 
-	private int idHash;
-
-    /**
-	 * for display only
-	 */
 	private String idShort;
+
+	private int idHash;
 
 	private byte[] ip;
 
@@ -70,7 +57,7 @@ public final class Node implements INode {
 
 	private int port;
 
-	private volatile long timestamp;
+	private long timestamp;
 
 	private long bestBlockNumber;
 
@@ -88,12 +75,14 @@ public final class Node implements INode {
 	 */
 	private String connection = "";
 
-	public PeerMetric peerMetric = new PeerMetric();
+    public PeerMetric peerMetric = new PeerMetric();
 
 	/**
+	 * v0
 	 * constructor for initial stage of connections from network
+	 * TODO: remove
 	 */
-	Node(String _ipStr, int port) {
+	public Node(String _ipStr, int port) {
 		this.fromBootList = false;
 		this.idHash = 0;
 		this.ip = ipStrToBytes(_ipStr);
@@ -104,14 +93,29 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * constructor for initial stage of boot nodes from config
+	 * v1
+	 * constructor for initial stage of connections from network
+	 */
+	public Node(final SocketChannel _channel, String _ipStr) {
+		this.fromBootList = false;
+		this.channelId = _channel.hashCode();
+		this.ip = ipStrToBytes(_ipStr);
+		this.ipStr = _ipStr;
+		this.port = 0;
+		this.timestamp = System.currentTimeMillis();
+		this.bestBlockNumber = 0L;
+		this.channel = _channel;
+	}
+
+	/**
+	 * constructor for initial stage of seed nodes from config
 	 */
 	public Node(boolean fromBootList, final byte[] _id, final byte[] _ip, final int _port) {
 		this.fromBootList = fromBootList;
 		this.id = _id;
 		if (_id != null && _id.length == 36) {
-			this.idHash = Arrays.hashCode(_id);
 			this.idShort = new String(Arrays.copyOfRange(_id, 0, 6));
+			this.idHash = Arrays.hashCode(_id);
 		}
 		this.ip = _ip;
 		this.ipStr = ipBytesToStr(_ip);
@@ -121,8 +125,7 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _ip
-	 *            String
+	 * @param _ip String
 	 * @return byte[]
 	 */
 	public static byte[] ipStrToBytes(final String _ip) {
@@ -141,8 +144,7 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _ip
-	 *            byte[]
+	 * @param _ip byte[]
 	 * @return String
 	 */
 	public static String ipBytesToStr(final byte[] _ip) {
@@ -162,9 +164,8 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _p2p
-	 *            String
-	 * @return Node TODO: ugly
+	 * @param _p2p String
+	 * @return Node
 	 */
 	public static Node parseP2p(String _p2p) {
 		if (!PATTERN_P2P.matcher(_p2p).matches())
@@ -187,8 +188,7 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _id
-	 *            byte[]
+	 * @param _id byte[]
 	 */
 	public void setId(final byte[] _id) {
 		this.id = _id;
@@ -199,8 +199,7 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _port
-	 *            int
+	 * @param _port int
 	 */
 	public void setPort(final int _port) {
 		this.port = _port;
@@ -219,18 +218,16 @@ public final class Node implements INode {
 	}
 
 	/**
-	 * @param _channel
-	 *            SocketChannel
+	 * @param _channel SocketChannel
 	 */
 	public void setChannel(final SocketChannel _channel) {
 		this.channel = _channel;
 	}
 
 	/**
-	 * @param _connection
-	 *            String
+	 * @param _connection String
 	 */
-	void setConnection(String _connection) {
+	public void setConnection(String _connection) {
 		this.connection = _connection;
 	}
 
@@ -263,6 +260,7 @@ public final class Node implements INode {
 		return this.timestamp;
 	}
 
+	@Override
 	public String getBinaryVersion() {
 		return this.binaryVersion;
 	}
@@ -280,20 +278,18 @@ public final class Node implements INode {
 	}
 
 	@Override
-	public int getIdHash() {
-		return this.idHash;
+	public String getIdShort() {
+		return this.idShort == null ? "" : this.idShort;
 	}
+
+	@Override
+	public int getIdHash() { return this.idHash; }
 
 	/**
 	 * @return String
 	 */
-	String getConnection() {
+	public String getConnection() {
 		return this.connection;
-	}
-
-	@Override
-	public String getIdShort() {
-		return this.idShort == null ? "" : this.idShort;
 	}
 
 	@Override
@@ -301,9 +297,7 @@ public final class Node implements INode {
 		return this.bestBlockNumber;
 	}
 
-	byte[] getBestBlockHash() {
-		return this.bestBlockHash;
-	}
+	public byte[] getBestBlockHash() { return this.bestBlockHash; }
 
 	@Override
 	public BigInteger getTotalDifficulty() {

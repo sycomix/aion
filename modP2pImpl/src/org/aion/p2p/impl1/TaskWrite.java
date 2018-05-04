@@ -85,7 +85,7 @@ public class TaskWrite implements Runnable {
 
             try {
                 while (buf.hasRemaining()) {
-                    // @Attention:  very important sleep , otherwise when NIO write buffer full, 
+                    // @Attention:  very important sleep , otherwise when NIO write buffer full,
                     // without sleep will hangup this thread.
                     Thread.sleep(0, 1);
                     sc.write(buf);

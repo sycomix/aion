@@ -37,7 +37,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 public class TaskWrite implements Runnable {
 
-	private ThreadPoolExecutor workers;
+	private ThreadPoolExecutor writeWorkers;
 	private boolean showLog;
 	private String nodeShortId;
 	private SocketChannel sc;
@@ -45,7 +45,7 @@ public class TaskWrite implements Runnable {
 	private ChannelBuffer channelBuffer;
 
 	/**
-	 * @param _workers ExecutorService
+	 * @param _writeWorkers ExecutorService
 	 * @param _showLog boolean
 	 * @param _nodeShortId String
 	 * @param _sc SocketChannel
@@ -53,14 +53,14 @@ public class TaskWrite implements Runnable {
 	 * @param _cb ChannelBuffer
 	 */
 	TaskWrite(
-			final ThreadPoolExecutor _workers,
+			final ThreadPoolExecutor _writeWorkers,
 			boolean _showLog,
 			String _nodeShortId,
 			final SocketChannel _sc,
 			final Msg _msg,
 			final ChannelBuffer _cb
 	) {
-		this.workers = _workers;
+		this.writeWorkers = _writeWorkers;
 		this.showLog = _showLog;
 		this.nodeShortId = _nodeShortId;
 		this.sc = _sc;
@@ -72,15 +72,15 @@ public class TaskWrite implements Runnable {
 	public void run() {
 
 		if (this.channelBuffer.onWrite.compareAndSet(false, true)) {
-
 			byte[] bodyBytes = msg.encode();
 			int bodyLen = bodyBytes == null ? 0 : bodyBytes.length;
 			Header h = msg.getHeader();
 			h.setLen(bodyLen);
 			byte[] headerBytes = h.encode();
 
-			// System.out.println("write " + h.getVer() + "-" + h.getCtrl() + "-" + h.getAction());
-			ByteBuffer buf = ByteBuffer.allocate(headerBytes.length + bodyLen);
+			int totalLen = headerBytes.length + bodyLen;
+			// System.out.println("!!! write route=" + h.getVer() + "-" + h.getCtrl() + "-" + h.getAction() + " len=" + totalLen);
+			ByteBuffer buf = ByteBuffer.allocate(totalLen);
 			buf.put(headerBytes);
 			if (bodyBytes != null)
 				buf.put(bodyBytes);
@@ -90,16 +90,18 @@ public class TaskWrite implements Runnable {
 				while (buf.hasRemaining()) {
 					sc.write(buf);
 				}
-			} catch (IOException ex) {
+			} catch (IOException e) {
 				if (showLog) {
 					System.out.println("<p2p write-msg-io-exception node=" + this.nodeShortId + ">");
 				}
-			} finally {
+			} catch (Exception e){
+			    System.out.println("write exeception -> " + e.getMessage());
+			    e.printStackTrace();
+            } finally {
 				this.channelBuffer.onWrite.set(false);
                 Msg msg = this.channelBuffer.outQueue.poll();
                 if (msg != null) {
-                    //System.out.println("write " + h.getCtrl() + "-" + h.getAction());
-                    workers.submit(new TaskWrite(workers, showLog, nodeShortId, sc, msg, channelBuffer));
+                    writeWorkers.submit(new TaskWrite(writeWorkers, showLog, nodeShortId, sc, msg, channelBuffer));
                 }
 			}
 		} else {
@@ -107,8 +109,8 @@ public class TaskWrite implements Runnable {
 				boolean success = this.channelBuffer.outQueue.offer(msg);
 				if (showLog)
 					System.out.println(
-							"<p2p-task-write add-msg=" + (success ? "true" : "false") +
-									" channel-messages-size=" + this.channelBuffer.outQueue.size() + ">");
+							"<p2p-task-write node=" + this.channelBuffer.displayId + " queue-msg=" + (success ? "true" : "false") +
+									" queue-size=" + this.channelBuffer.outQueue.size() + ">");
 			} catch (Exception e){
 				e.printStackTrace();
 			}
