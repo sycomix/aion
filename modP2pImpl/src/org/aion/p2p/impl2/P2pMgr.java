@@ -336,8 +336,7 @@ public final class P2pMgr implements IP2pMgr {
                         }
                     } catch (IOException e) {
                         if (showLog)
-                            System.out.println("<p2p action=connect-outbound addr=" + node.getIpStr() + ":" + _port
-                                    + " result=failed>");
+                            System.out.println("<p2p fail-connect-" + node.getIpStr() + ":" + _port + ">");
                     }
                 }
             }
@@ -400,7 +399,7 @@ public final class P2pMgr implements IP2pMgr {
             }
         }
 
-        this.scheduledWorkers = new ScheduledThreadPoolExecutor(1);
+        this.scheduledWorkers = new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "scheduled-worker"));
         int cores = Runtime.getRuntime().availableProcessors();
         //private AtomicInteger count = new AtomicInteger();
         this.processWorkers = new ThreadPoolExecutor(
@@ -456,7 +455,6 @@ public final class P2pMgr implements IP2pMgr {
     private void configChannel(final SocketChannel _channel) throws IOException {
         _channel.configureBlocking(false);
         _channel.socket().setSoTimeout(TIMEOUT_MSG_READ);
-//        _channel.socket().setKeepAlive(true);
         _channel.socket().setReceiveBufferSize(P2pConstant.RECV_BUFFER_SIZE);
         _channel.socket().setSendBufferSize(P2pConstant.SEND_BUFFER_SIZE);
     }
@@ -578,15 +576,8 @@ public final class P2pMgr implements IP2pMgr {
         byte act = h.getAction();
         int route = h.getRoute();
 
-        boolean underRC = cb.shouldRoute(route,
-                ((route == txBroadCastRoute) ? P2pConstant.READ_MAX_RATE_TXBC : P2pConstant.READ_MAX_RATE));
-
-        if (!underRC) {
-            if (showLog)
-                System.out.println("<p2p over-called-route=" + ver + "-" + ctrl + "-" + act + " calls="
-                        + cb.getRouteCount(route).count + " node=" + cb.displayId + ">");
+        if(!cb.shouldRoute(route, route == txBroadCastRoute ? P2pConstant.READ_MAX_RATE_TXBC : P2pConstant.READ_MAX_RATE))
             return;
-        }
 
         // print route
         // System.out.println("read " + ver + "-" + ctrl + "-" + act);
@@ -725,6 +716,7 @@ public final class P2pMgr implements IP2pMgr {
             node.setId(req.getNodeId());
             node.setPort(req.getPort());
             _cb.nodeIdHash = node.getIdHash();
+            _cb.displayId = node.getIdShort();
             String binaryVersion;
             try {
                 binaryVersion = new String(req.getRevision(), "UTF-8");
@@ -759,6 +751,7 @@ public final class P2pMgr implements IP2pMgr {
 
             if (res.getSuccess()) {
                 _cb.nodeIdHash = node.getIdHash();
+                _cb.displayId = node.getIdShort();
                 node.refreshTimestamp();
                 node.setBinaryVersion(res.getBinaryVersion());
                 addToActive(node, "outbound");
@@ -844,6 +837,12 @@ public final class P2pMgr implements IP2pMgr {
             System.out.println("<p2p " +_origin + " -> active node-id=" + _node.getIdShort() + " ip=" + _node.getIpStr() + ">");
     }
 
+    /**
+     * @param _collection      Map
+     * @param _collectionName  String
+     * @param _timeout         int
+     * used to timeout outbound / inbound nodes
+     */
     private void timeout(final Map<Integer, Node> _collection, String _collectionName, int _timeout) {
         Iterator<Map.Entry<Integer, Node>> inboundIt = _collection.entrySet().iterator();
         while (inboundIt.hasNext()) {
@@ -859,6 +858,9 @@ public final class P2pMgr implements IP2pMgr {
         }
     }
 
+    /**
+     * used to timeout active nodes
+     */
     private void timeoutActive() {
         long now = System.currentTimeMillis();
         OptionalDouble average = activeNodes.values().stream().mapToLong(n -> now - n.getTimestamp()).average();
