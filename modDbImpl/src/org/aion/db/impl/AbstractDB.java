@@ -37,7 +37,10 @@ package org.aion.db.impl;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.aion.base.db.IByteArrayKeyValueDatabase;
 import org.aion.base.util.ByteArrayWrapper;
@@ -114,6 +117,20 @@ public abstract class AbstractDB implements IByteArrayKeyValueDatabase {
         }
 
         open();
+    }
+
+    @Override
+    public void purge() {
+        try {
+            close();
+        } finally {
+            // deleting data even if close threw an exception
+            try (Stream<Path> stream = Files.walk(new File(path).toPath())) {
+                stream.map(Path::toFile).forEach(File::delete);
+            } catch (Exception e) {
+                LOG.error("Unable to delete path due to: ", e);
+            }
+        }
     }
 
     @Override
