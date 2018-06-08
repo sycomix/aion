@@ -155,7 +155,7 @@ public abstract class ApiAion extends Api {
     }
 
     public String getCoinbase() {
-        String coinbase = CfgAion.inst().getConsensus().getMinerAddress();
+        String coinbase = CfgAion.inst().getConsensusEngine().getCfgConsensus().getActorAddress();
         return TypeConverter.toJsonHex(coinbase);
     }
 

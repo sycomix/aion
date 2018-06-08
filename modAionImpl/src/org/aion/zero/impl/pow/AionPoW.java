@@ -126,8 +126,9 @@ public class AionPoW {
 
             // return early if mining is disabled, otherwise we are doing needless
             // work by generating new block templates on IMPORT_BEST
-            if (!config.getConsensus().getMining())
+            if (!config.getConsensusEngine().getCfgConsensus().isActorActive()) {
                 return;
+            }
 
             setupHandler();
             ees = new EventExecuteService(100_000, "EpPow", Thread.NORM_PRIORITY, LOG);

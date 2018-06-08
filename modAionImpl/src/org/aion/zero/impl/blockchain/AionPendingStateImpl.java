@@ -265,7 +265,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     private AionPendingStateImpl(AionRepositoryImpl repository) {
         this.repository = repository;
 
-        this.isSeed = CfgAion.inst().getConsensus().isSeed();
+        this.isSeed = CfgAion.inst().getConsensusEngine().getCfgConsensus().isSeed();
 
         if (!isSeed) {
 
@@ -281,7 +281,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             prop.put(TxPoolModule.MODULENAME, "org.aion.txpool.zero.TxPoolA0");
             // The BlockEnergyLimit will be updated when the best block found.
             prop.put(ITxPool.PROP_BLOCK_NRG_LIMIT,
-                    String.valueOf(CfgAion.inst().getConsensus().getEnergyStrategy().getUpperBound()));
+                    String.valueOf(CfgAion.inst().getConsensusEngine()
+                        .getCfgConsensus().getEnergyStrategy().getUpperBound()));
             prop.put(ITxPool.PROP_BLOCK_SIZE_LIMIT, String.valueOf(Constant.MAX_BLK_SIZE));
             prop.put(ITxPool.PROP_TX_TIMEOUT, "86400");
             TxPoolModule txPoolModule;

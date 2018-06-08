@@ -99,7 +99,8 @@ public class AionImpl implements IAionChain {
     @Override
     public IMineRunner getBlockMiner() {
 
-        Address minerCoinbase = Address.wrap(this.cfg.getConsensus().getMinerAddress());
+        Address minerCoinbase = Address.wrap(
+            this.cfg.getConsensusEngine().getCfgConsensus().getActorAddress());
 
         if (minerCoinbase.equals(Address.EMPTY_ADDRESS())) {
             LOG_GEN.info("Miner address is not set");

@@ -42,7 +42,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 
-public final class CfgConsensusPow extends CfgConsensus {
+public final class CfgConsensusPow extends CfgConsensus implements ICfgConsensus {
 
     private final CfgEnergyStrategy cfgEnergyStrategy;
 
@@ -109,37 +109,35 @@ public final class CfgConsensusPow extends CfgConsensus {
         try {
             Writer strWriter = new StringWriter();
             xmlWriter = output.createXMLStreamWriter(strWriter);
-            xmlWriter.writeCharacters("\r\n\t");
-            xmlWriter.writeStartElement("consensus");
 
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeStartElement("mining");
-            xmlWriter.writeCharacters(this.getMining() + "");
+            xmlWriter.writeCharacters(this.isActorActive() + "");
             xmlWriter.writeEndElement();
 
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeStartElement("miner-address");
-            xmlWriter.writeCharacters(this.getMinerAddress());
+            xmlWriter.writeCharacters(this.getActorAddress());
             xmlWriter.writeEndElement();
 
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeStartElement("cpu-mine-threads");
-            xmlWriter.writeCharacters(this.getCpuMineThreads() + "");
+            xmlWriter.writeCharacters(this.getNumCpuThreads() + "");
             xmlWriter.writeEndElement();
 
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeStartElement("extra-data");
             xmlWriter.writeCharacters(this.getExtraData());
             xmlWriter.writeEndElement();
 
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeStartElement("nrg-strategy");
             xmlWriter.writeCharacters(this.cfgEnergyStrategy.toXML());
-            xmlWriter.writeCharacters("\r\n\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t");
             xmlWriter.writeEndElement();
 
-            xmlWriter.writeCharacters("\r\n\t");
-            xmlWriter.writeEndElement();
+//            xmlWriter.writeCharacters("\r\n\t");
+//            xmlWriter.writeEndElement();
             xml = strWriter.toString();
             strWriter.flush();
             strWriter.close();
@@ -156,32 +154,39 @@ public final class CfgConsensusPow extends CfgConsensus {
         this.extraData = _extraData;
     }
 
-    public void setMining(final boolean value) {
-        this.mining = value;
-    }
-
-    public boolean getMining() {
+    @Override
+    public boolean isActorActive() {
         return this.mining;
     }
 
-    public byte getCpuMineThreads() {
+    @Override
+    public String getActorAddress() {
+        return this.minerAddress;
+    }
+
+    @Override
+    public byte getNumCpuThreads() {
         int procs = Runtime.getRuntime().availableProcessors();
         return (byte) Math.min(procs, this.cpuMineThreads);
     }
 
-    public String getExtraData() {
-        return this.extraData;
-    }
-
-    public String getMinerAddress() {
-        return this.minerAddress;
-    }
-
+    @Override
     public CfgEnergyStrategy getEnergyStrategy() {
         return this.cfgEnergyStrategy;
     }
 
+    @Override
+    public String getExtraData() {
+        return this.extraData;
+    }
+
+    @Override
     public boolean isSeed() {
         return seed;
+    }
+
+    @Override
+    public void setIsActorActive(boolean isActive) {
+        this.mining = isActive;
     }
 }

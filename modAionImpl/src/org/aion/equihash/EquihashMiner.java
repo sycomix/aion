@@ -36,6 +36,7 @@ import org.aion.mcf.mine.AbstractMineRunner;
 import org.aion.zero.impl.blockchain.AionImpl;
 import org.aion.zero.impl.blockchain.IAionChain;
 import org.aion.zero.impl.config.CfgAion;
+import org.aion.zero.impl.config.ICfgConsensus;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.IAionBlock;
 
@@ -57,6 +58,7 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
     private IAionChain a0Chain;
 
     private CfgAion cfg;
+    private ICfgConsensus cfgCon;
 
     private IEventMgr evtMgr;
 
@@ -117,10 +119,11 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
      */
     private EquihashMiner() {
         this.cfg = CfgAion.inst();
+        this.cfgCon = this.cfg.getConsensusEngine().getCfgConsensus();
 
         this.a0Chain = AionImpl.inst();
 
-        cpuThreads = cfg.getConsensus().getCpuMineThreads();
+        cpuThreads = this.cfgCon.getNumCpuThreads();
 
         this.n = CfgAion.getN();
         this.k = CfgAion.getK();
@@ -129,7 +132,7 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
         scheduledWorkers = new ScheduledThreadPoolExecutor(1);
         hashrateMAF = new MAF(64);
 
-        setCpuThreads(cfg.getConsensus().getCpuMineThreads());
+        setCpuThreads(this.cfgCon.getNumCpuThreads());
 
         ees = new EventExecuteService(1000, "EpMiner", Thread.NORM_PRIORITY, LOG);
         ees.setFilter(setEvtFilter());
@@ -253,13 +256,13 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
      */
     @Override
     public void delayedStartMining(int sec) {
-        if (cfg.getConsensus().getMining()) {
+        if (this.cfgCon.isActorActive()) {
             LOG.info("<delayed-start-sealing>");
             Timer t = new Timer();
             t.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if (cfg.getConsensus().getMining()) {
+                    if (cfgCon.isActorActive()) {
                         startMining();
                     }
                 }
@@ -275,7 +278,7 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
      */
     public void registerCallback() {
         // Only register events if actual mining
-        if (cfg.getConsensus().getMining()) {
+        if (cfgCon.isActorActive()) {
             if (this.evtMgr != null) {
                 IHandler hdrCons = this.evtMgr.getHandler(4);
                 if (hdrCons != null) {

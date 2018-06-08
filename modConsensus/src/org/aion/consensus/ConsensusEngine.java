@@ -31,8 +31,23 @@ public final class ConsensusEngine {
 
     private ConsensusEngine(CfgAion config) {
         // It may be more practical in the future to simply keep a ref to config.
-        this.isSeed = config.getConsensus().isSeed();
-        this.engine = Engine.PoW;   //TODO: read in value from config
+        this.isSeed = config.getConsensusEngine().getCfgConsensus().isSeed();
+        this.engine = toEngine(config.getConsensusEngine().getEngineLowercase());
+    }
+
+    /**
+     * Converts engine to an Engine object.
+     *
+     * @param engine the engine as string.
+     * @return the engine as Engine.
+     * @throws IllegalStateException if engine is unsupported.
+     */
+    private Engine toEngine(String engine) {
+        //TODO: make more efficient; probably want to log the failure.
+        switch (engine) {
+            case "pow": return Engine.PoW;
+            default: throw new IllegalStateException("Attempt to use unsupported engine: " + engine);
+        }
     }
 
     /**

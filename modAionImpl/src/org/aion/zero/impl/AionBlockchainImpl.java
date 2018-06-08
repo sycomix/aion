@@ -77,6 +77,7 @@ import org.aion.vm.TransactionExecutor;
 import org.aion.zero.exceptions.HeaderStructureException;
 import org.aion.zero.impl.blockchain.ChainConfiguration;
 import org.aion.zero.impl.config.CfgAion;
+import org.aion.zero.impl.config.ICfgConsensus;
 import org.aion.zero.impl.core.IAionBlockchain;
 import org.aion.zero.impl.core.energy.AbstractEnergyStrategyLimit;
 import org.aion.zero.impl.core.energy.EnergyStrategies;
@@ -175,6 +176,8 @@ public class AionBlockchainImpl implements IAionBlockchain {
      */
     private static A0BCConfig generateBCConfig(CfgAion cfgAion) {
         ChainConfiguration config = new ChainConfiguration();
+        ICfgConsensus consensus = cfgAion.getConsensusEngine().getCfgConsensus();
+
         return new A0BCConfig() {
             @Override
             public Address getCoinbase() {
@@ -183,7 +186,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
             @Override
             public byte[] getExtraData() {
-                return cfgAion.getConsensus().getExtraData().getBytes();
+                return consensus.getExtraData().getBytes();
             }
 
             @Override
@@ -194,7 +197,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
             @Override
             public Address getMinerCoinbase() {
-                return Address.wrap(cfgAion.getConsensus().getMinerAddress());
+                return Address.wrap(consensus.getActorAddress());
             }
 
             // TODO: hook up to configuration file
@@ -206,9 +209,9 @@ public class AionBlockchainImpl implements IAionBlockchain {
             @Override
             public AbstractEnergyStrategyLimit getEnergyLimitStrategy() {
                 return EnergyStrategies.getEnergyStrategy(
-                        cfgAion.getConsensus().getEnergyStrategy().getStrategy(),
-                        cfgAion.getConsensus().getEnergyStrategy(),
-                        config);
+                    consensus.getEnergyStrategy().getStrategy(),
+                    consensus.getEnergyStrategy(),
+                    config);
             }
         };
     }

@@ -95,7 +95,7 @@ public class CfgEnergyStrategy {
             Writer strWriter = new StringWriter();
             xmlWriter = output.createXMLStreamWriter(strWriter);
 
-            xmlWriter.writeCharacters("\r\n\t\t\t");
+            xmlWriter.writeCharacters("\r\n\t\t\t\t");
             xmlWriter.writeStartElement(CLAMPED_DECAYING.getLabel());
             xmlWriter.writeAttribute(UPPER_BOUND, String.valueOf(this.upperBound));
             xmlWriter.writeAttribute(LOWER_BOUND, String.valueOf(this.lowerBound));

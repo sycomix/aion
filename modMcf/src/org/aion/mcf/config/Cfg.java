@@ -28,6 +28,7 @@ package org.aion.mcf.config;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import org.aion.mcf.types.AbstractBlock;
+import org.aion.zero.impl.config.CfgConEngine;
 
 /**
  * @author chris
@@ -48,7 +49,7 @@ public abstract class Cfg {
 
     protected CfgNet net;
 
-    protected CfgConsensus consensus;
+    protected CfgConEngine consensus;
 
     protected CfgSync sync;
 

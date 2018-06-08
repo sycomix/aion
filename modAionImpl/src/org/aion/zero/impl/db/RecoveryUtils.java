@@ -33,6 +33,7 @@ import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.AionGenesis;
 import org.aion.zero.impl.AionHubUtils;
 import org.aion.zero.impl.config.CfgAion;
+import org.aion.zero.impl.config.ICfgConsensus;
 import org.aion.zero.impl.core.IAionBlockchain;
 import org.aion.zero.impl.types.AionBlock;
 
@@ -49,7 +50,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         Map<String, String> cfgLog = new HashMap<>();
         cfgLog.put("DB", "INFO");
@@ -73,7 +74,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         cfg.getDb().setHeapCacheEnabled(false);
 
@@ -106,7 +107,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         cfg.getDb().setHeapCacheEnabled(false);
 
@@ -129,7 +130,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         cfg.getDb().setHeapCacheEnabled(false);
 
@@ -216,7 +217,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         Map<String, String> cfgLog = new HashMap<>();
         cfgLog.put("DB", "ERROR");
@@ -285,7 +286,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.dbFromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         Map<String, String> cfgLog = new HashMap<>();
         cfgLog.put("DB", "ERROR");
@@ -332,7 +333,7 @@ public class RecoveryUtils {
         // ensure mining is disabled
         CfgAion cfg = CfgAion.inst();
         cfg.fromXML();
-        cfg.getConsensus().setMining(false);
+        cfg.getConsensusEngine().getCfgConsensus().setIsActorActive(false);
 
         // setting pruning to the version requested
         CfgDb.PruneOption option = CfgDb.PruneOption.fromValue(pruning_type);

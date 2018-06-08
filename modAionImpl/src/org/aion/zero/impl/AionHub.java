@@ -134,7 +134,7 @@ public class AionHub {
 		loadBlockchain();
 
         this.startingBlock = this.blockchain.getBestBlock();
-        if (!cfg.getConsensus().isSeed()) {
+        if (!cfg.getConsensusEngine().getCfgConsensus().isSeed()) {
             this.mempool.updateBest();
 
             if (cfg.getTx().getPoolBackup()) {

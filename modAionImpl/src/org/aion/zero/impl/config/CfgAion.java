@@ -53,7 +53,7 @@ public final class CfgAion extends Cfg {
         this.mode = "aion";
         this.id = UUID.randomUUID().toString();
         this.net = new CfgNet();
-        this.consensus = new CfgConsensusPow();
+        this.consensus = new CfgConEngine();
         this.sync = new CfgSync();
         this.api = new CfgApi();
         this.db = new CfgDb();
@@ -87,8 +87,8 @@ public final class CfgAion extends Cfg {
         }
     }
 
-    public CfgConsensusPow getConsensus() {
-        return (CfgConsensusPow) this.consensus;
+    public CfgConEngine getConsensusEngine() {
+        return this.consensus;
     }
 
     public synchronized AionGenesis getGenesis() {
@@ -302,7 +302,7 @@ public final class CfgAion extends Cfg {
             sw.writeCharacters(this.getApi().toXML());
             sw.writeCharacters(this.getNet().toXML());
             sw.writeCharacters(this.getSync().toXML());
-            sw.writeCharacters(this.getConsensus().toXML());
+            sw.writeCharacters(this.getConsensusEngine().toXML());
             sw.writeCharacters(this.getDb().toXML());
             sw.writeCharacters(this.getLog().toXML());
             sw.writeCharacters(this.getTx().toXML());

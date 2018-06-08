@@ -103,8 +103,8 @@ import org.aion.zero.impl.Version;
 import org.aion.zero.impl.blockchain.AionImpl;
 import org.aion.zero.impl.blockchain.IAionChain;
 import org.aion.zero.impl.config.CfgAion;
-import org.aion.zero.impl.config.CfgConsensusPow;
 import org.aion.zero.impl.config.CfgEnergyStrategy;
+import org.aion.zero.impl.config.ICfgConsensus;
 import org.aion.zero.impl.db.AionBlockStore;
 import org.aion.zero.impl.db.AionRepositoryImpl;
 import org.aion.zero.impl.sync.PeerState;
@@ -197,7 +197,7 @@ public class ApiWeb3Aion extends ApiAion {
         templateMap = new HashMap<>();
         templateMapLock = new ReentrantReadWriteLock();
         isFilterEnabled = CfgAion.inst().getApi().getRpc().isFiltersEnabled();
-        isSeedMode = CfgAion.inst().getConsensus().isSeed();
+        isSeedMode = CfgAion.inst().getConsensusEngine().getCfgConsensus().isSeed();
 
         initNrgOracle(_ac);
 
@@ -1549,12 +1549,20 @@ public class ApiWeb3Aion extends ApiAion {
         return obj;
     }
 
+    // Delegates its work to the appropriate helper dependent on the current engine.
     private static JSONObject configConsensus() {
-        CfgConsensusPow config = CfgAion.inst().getConsensus();
+        switch (CfgAion.inst().getConsensusEngine().getEngineLowercase()) {
+            case "pow": return configConsensusPoW();
+            default: return null;
+        }
+    }
+
+    private static JSONObject configConsensusPoW() {
+        ICfgConsensus config = CfgAion.inst().getConsensusEngine().getCfgConsensus();
         JSONObject obj = new JSONObject();
-        obj.put("mining", config.getMining());
-        obj.put("minerAddress", config.getMinerAddress());
-        obj.put("threads", config.getCpuMineThreads());
+        obj.put("mining", config.isActorActive());
+        obj.put("minerAddress", config.getActorAddress());
+        obj.put("threads", config.getNumCpuThreads());
         obj.put("extraData", config.getExtraData());
         obj.put("isSeed", config.isSeed());
 
