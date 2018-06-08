@@ -27,13 +27,14 @@ import org.aion.api.server.pb.ApiAion0;
 import org.aion.api.server.pb.IHdlr;
 import org.aion.api.server.zmq.HdlrZmq;
 import org.aion.api.server.zmq.ProtocolProcessor;
+import org.aion.base.type.IActor;
+import org.aion.consensus.ConsensusEngine;
 import org.aion.crypto.ECKeyFac;
 import org.aion.crypto.HashUtil;
 import org.aion.evtmgr.EventMgrModule;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.aion.mcf.config.CfgApiRpc;
-import org.aion.mcf.mine.IMineRunner;
 import org.aion.zero.impl.blockchain.AionFactory;
 import org.aion.zero.impl.blockchain.IAionChain;
 import org.aion.zero.impl.cli.Cli;
@@ -107,15 +108,11 @@ public class Aion {
 
         IAionChain ac = AionFactory.create();
 
-        IMineRunner nm = null;
-
-        if (!cfg.getConsensus().isSeed()) {
-            nm = ac.getBlockMiner();
-        }
-
-        if (nm != null) {
-            nm.delayedStartMining(10);
-        }
+        // Create and start a new actor for the currently selected consensus implementation.
+        ConsensusEngine.sealConfigurations(cfg);
+        ConsensusEngine conEng = ConsensusEngine.getInstance();
+        IActor actor = conEng.getActor();
+        conEng.startActor(actor);
 
         /*
          * Start Threads.
@@ -150,19 +147,19 @@ public class Aion {
          */
         class ShutdownThreadHolder {
             final Thread zmqThread;
-            final IMineRunner miner;
+            final IActor actor;
             final ProtocolProcessor pp;
             final NanoServer rpc;
 
-            private ShutdownThreadHolder(Thread zmqThread, IMineRunner nm, ProtocolProcessor pp, NanoServer rpc) {
+            private ShutdownThreadHolder(Thread zmqThread, IActor actor, ProtocolProcessor pp, NanoServer rpc) {
                 this.zmqThread = zmqThread;
-                this.miner = nm;
+                this.actor = actor;
                 this.pp = pp;
                 this.rpc = rpc;
             }
         }
 
-        ShutdownThreadHolder holder = new ShutdownThreadHolder(zmqThread, nm, processor, rpcServer);
+        ShutdownThreadHolder holder = new ShutdownThreadHolder(zmqThread, actor, processor, rpcServer);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 
@@ -185,12 +182,9 @@ public class Aion {
                 }
             }
 
-            if (holder.miner != null) {
-                LOG.info("Shutting down sealer");
-                holder.miner.stopMining();
-                holder.miner.shutdown();
-                LOG.info("Shutdown sealer... Done!");
-            }
+            // Stop and shutdown the actor for the currently selected consensus implementation.
+            conEng.stopActor(holder.actor);
+            conEng.shutdownActor(holder.actor, LOG);
 
             LOG.info("Shutting down the AionHub...");
             ac.getAionHub().close();

@@ -10,6 +10,9 @@
     <path id="classpath.test">
         <pathelement location="${dir.mod}/modConsensus.jar"/>
         <pathelement location="${dir.mod}/modAionBase.jar"/>
+        <pathelement location="${dir.mod}/modAionImpl.jar"/>
+        <pathelement location="${dir.mod}/modMcf.jar"/>
+        <pathelement location="${dir.lib}/slf4j-api-1.7.25.jar"/>
     </path>
 
     <target name="clean_build" depends="clean, build"/>
@@ -82,6 +85,9 @@
             <modulepath>
                 <pathelement location="${dir.mod}/modConsensus.jar"/>
                 <pathelement location="${dir.mod}/modAionBase.jar"/>
+                <pathelement location="${dir.mod}/modAionImpl.jar"/>
+                <pathelement location="${dir.mod}/modMcf.jar"/>
+                <pathelement location="${dir.lib}/slf4j-api-1.7.25.jar"/>
             </modulepath>
         </javac>
 

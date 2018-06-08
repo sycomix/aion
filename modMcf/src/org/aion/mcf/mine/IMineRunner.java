@@ -21,7 +21,9 @@
 
 package org.aion.mcf.mine;
 
-public interface IMineRunner {
+import org.aion.base.type.IActor;
+
+public interface IMineRunner extends IActor {
 
     void startMining();
 
