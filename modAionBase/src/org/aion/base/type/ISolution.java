@@ -35,8 +35,8 @@
 package org.aion.base.type;
 
 /**
- * Interface for any PoW and PoI miner solution.
- * 
+ * Interface for any consensus algorithm solution. Note that the definition of a solution is subject
+ * to vary from algorithm to algorithm.
  */
 public interface ISolution {
 

@@ -41,7 +41,6 @@ public class Solution implements ISolution {
     private byte[] solution;
 
     public Solution(IAionBlock block, byte[] nonce, byte[] solution) {
-
         this.block = block;
         this.nonce = nonce;
         this.solution = solution;
