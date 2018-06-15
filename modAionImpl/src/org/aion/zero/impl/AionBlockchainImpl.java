@@ -667,12 +667,17 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
 
         IAionBlock grandParent = this.getParent(parent.getHeader());
+        /*
         block.getHeader().setDifficulty(
                 ByteUtil.bigIntegerToBytes(this.chainConfiguration.getDifficultyCalculator()
                 .calculateDifficulty(
                         parent.getHeader(),
                         grandParent == null ? null : grandParent.getHeader()),
                 DIFFICULTY_BYTES));
+        */
+        block.getHeader().setDifficulty(
+                ByteUtil.bigIntegerToBytes(BigInteger.ONE, DIFFICULTY_BYTES));
+
         /*
          * Begin execution phase
          */

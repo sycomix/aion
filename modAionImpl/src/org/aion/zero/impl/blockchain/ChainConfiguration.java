@@ -142,7 +142,7 @@ public class ChainConfiguration implements IChainCfg<IAionBlock, AionTransaction
     public GrandParentBlockHeaderValidator<A0BlockHeader> createGrandParentHeaderValidator() {
         return new GrandParentBlockHeaderValidator<>(
                 Arrays.asList(
-                        new AionDifficultyRule(this)
+                        // new AionDifficultyRule(this)
                 ));
     }
 }
