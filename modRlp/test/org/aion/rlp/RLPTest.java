@@ -701,28 +701,6 @@ public class RLPTest {
     }
 
     @Test
-    public void testEncodeEmptyString() {
-        String test = "";
-        String expected = "80";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        String decodeResult = (String) decode(encoderesult, 0).getDecoded();
-        assertEquals(test, decodeResult);
-    }
-
-    @Test
-    public void testEncodeShortString() {
-        String test = "dog";
-        String expected = "83646f67";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        byte[] decodeResult = (byte[]) decode(encoderesult, 0).getDecoded();
-        assertEquals(test, bytesToAscii(decodeResult));
-    }
-
-    @Test
     public void testEncodeSingleCharacter() {
         String test = "d";
         String expected = "64";
@@ -731,28 +709,6 @@ public class RLPTest {
 
         byte[] decodeResult = (byte[]) decode(encoderesult, 0).getDecoded();
         assertEquals(test, bytesToAscii(decodeResult));
-    }
-
-    @Test
-    public void testEncodeLongString() {
-        String test = "Lorem ipsum dolor sit amet, consectetur adipisicing elit"; // length = 56
-        String expected = "b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        byte[] decodeResult = (byte[]) decode(encoderesult, 0).getDecoded();
-        assertEquals(test, bytesToAscii(decodeResult));
-    }
-
-    @Test
-    public void testEncodeZero() {
-        Integer test = 0;
-        String expected = "80";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        String decodeResult = (String) decode(encoderesult, 0).getDecoded();
-        assertEquals("", decodeResult);
     }
 
     @Test
@@ -1041,7 +997,7 @@ public class RLPTest {
     }
 
     // Code from: http://stackoverflow.com/a/4785776/459349
-    private String bytesToAscii(byte[] b) {
+    public static String bytesToAscii(byte[] b) {
         String hex = Hex.toHexString(b);
         StringBuilder output = new StringBuilder();
         for (int i = 0; i < hex.length(); i += 2) {
