@@ -1,18 +1,42 @@
+/*
+ * Copyright (c) 2017-2018 Aion foundation.
+ *
+ *     This file is part of the aion network project.
+ *
+ *     The aion network project is free software: you can redistribute it
+ *     and/or modify it under the terms of the GNU General Public License
+ *     as published by the Free Software Foundation, either version 3 of
+ *     the License, or any later version.
+ *
+ *     The aion network project is distributed in the hope that it will
+ *     be useful, but WITHOUT ANY WARRANTY; without even the implied
+ *     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *     See the GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with the aion network project source files.
+ *     If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Contributors:
+ *     Aion foundation.
+ */
 package org.aion.rlp;
 
 import static org.aion.base.util.ByteUtil.byteArrayToInt;
 import static org.aion.rlp.RLPTest.bytesToAscii;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigInteger;
 import org.aion.base.util.Hex;
 import org.junit.Test;
 
 /**
- * Tests that the RLP implementation is compliant with the RLP specification from Ethereum.
- *
- * <p>TODO: add links to files
+ * Tests that the RLP implementation is compliant with the RLP specification from Ethereum <a
+ * href="https://github.com/ethereum/pyrlp/blob/master/tests/rlptest.json">pyrlp rlptest.json</a>
+ * and <a href="https://github.com/ethereum/tests/blob/develop/RLPTests/rlptest.json">tests
+ * rlptest.json</a>.
  *
  * @author Alexandra Roatis
  */
@@ -146,20 +170,207 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeMediumInt4() {
+    public void testEncodeBigInt1() {
         BigInteger input = new BigInteger("83729609699884896815286331701780722", 10);
-        byte[] expected = Hex.decode("8F102030405060708090A0B0C0D0E0F2");
+        byte[] expected = Hex.decode("8f102030405060708090a0b0c0d0e0f2");
 
         byte[] actual = RLP.encode(input);
         assertArrayEquals(expected, actual);
     }
 
     @Test
-    public void testEncodeMediumInt5() {
+    public void testEncodeBigInt2() {
         BigInteger input =
                 new BigInteger(
                         "105315505618206987246253880190783558935785933862974822347068935681", 10);
-        byte[] expected = Hex.decode("9C0100020003000400050006000700080009000A000B000C000D000E01");
+        byte[] expected = Hex.decode("9c0100020003000400050006000700080009000a000b000c000d000e01");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeBigInt3() {
+        BigInteger input =
+                new BigInteger(
+                        "115792089237316195423570985008687907853269984665640564039457584007913129639936",
+                        10);
+        byte[] expected =
+                Hex.decode("a1010000000000000000000000000000000000000000000000000000000000000000");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeEmptyList() {
+        Object[] input = new Object[0];
+        byte[] expected = Hex.decode("c0");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeStringList() {
+        String[] input = new String[] {"dog", "god", "cat"};
+        byte[] expected = Hex.decode("cc83646f6783676f6483636174");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeMultiList() {
+        // input: [ "zw", [ 4 ], 1 ]
+        Object[] input = new Object[] {"zw", new Object[] {4}, 1};
+        byte[] expected = Hex.decode("c6827a77c10401");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeMaxShortList() {
+        String[] input =
+                new String[] {
+                    "asdf", "qwer", "zxcv", "asdf", "qwer", "zxcv", "asdf", "qwer", "zxcv", "asdf",
+                    "qwer"
+                };
+        byte[] expected =
+                Hex.decode(
+                        "f784617364668471776572847a78637684617364668471776572847a78637684617364668471776572847a78637684617364668471776572");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeLongList1() {
+        Object[] input =
+                new Object[] {
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"}
+                };
+        byte[] expected =
+                Hex.decode(
+                        "f840cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeLongList2() {
+        Object[] input =
+                new Object[] {
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"}
+                };
+        byte[] expected =
+                Hex.decode(
+                        "f90200cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeListOfLists1() {
+        // input: [ [ [], [] ], [] ]
+        Object[] input = new Object[] {new Object[] {new Object[0], new Object[0]}, new Object[0]};
+        byte[] expected = Hex.decode("c4c2c0c0c0");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeListOfLists2() {
+        // input: [ [], [[]], [ [], [[]] ] ]
+        Object[] input =
+                new Object[] {
+                    new Object[0], // first item
+                    new Object[] {new Object[0]}, // second item
+                    new Object[] {new Object[0], new Object[] {new Object[0]}}
+                }; // third item
+        byte[] expected = Hex.decode("c7c0c1c0c3c0c1c0");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeDictList() {
+        Object[] input =
+                new Object[] {
+                    new String[] {"key1", "val1"},
+                    new String[] {"key2", "val2"},
+                    new String[] {"key3", "val3"},
+                    new String[] {"key4", "val4"}
+                };
+        byte[] expected =
+                Hex.decode(
+                        "ecca846b6579318476616c31ca846b6579328476616c32ca846b6579338476616c33ca846b6579348476616c34");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeByteString1() {
+        String input = "\u0000";
+        byte[] expected = Hex.decode("00");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeByteString2() {
+        String input = "\u0001";
+        byte[] expected = Hex.decode("01");
+
+        byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    public void testEncodeByteString3() {
+        String input = "\u007F";
+        byte[] expected = Hex.decode("7f");
 
         byte[] actual = RLP.encode(input);
         assertArrayEquals(expected, actual);
@@ -295,8 +506,8 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeMediumInt4() {
-        byte[] input = Hex.decode("8F102030405060708090A0B0C0D0E0F2");
+    public void testDecodeBigInt1() {
+        byte[] input = Hex.decode("8f102030405060708090a0b0c0d0e0f2");
         BigInteger expected = new BigInteger("83729609699884896815286331701780722", 10);
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
@@ -304,13 +515,326 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeMediumInt5() {
-        byte[] input = Hex.decode("9C0100020003000400050006000700080009000A000B000C000D000E01");
+    public void testDecodeBigInt2() {
+        byte[] input = Hex.decode("9c0100020003000400050006000700080009000a000b000c000d000e01");
         BigInteger expected =
                 new BigInteger(
                         "105315505618206987246253880190783558935785933862974822347068935681", 10);
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertEquals(expected, new BigInteger(1, actual));
+    }
+
+    @Test
+    public void testDecodeBigInt3() {
+        byte[] input =
+                Hex.decode("a1010000000000000000000000000000000000000000000000000000000000000000");
+        BigInteger expected =
+                new BigInteger(
+                        "115792089237316195423570985008687907853269984665640564039457584007913129639936",
+                        10);
+
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected, new BigInteger(1, actual));
+    }
+
+    @Test
+    public void testDecodeEmptyList() {
+        byte[] input = Hex.decode("c0");
+
+        Object[] decodeResult = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertTrue(decodeResult.length == 0);
+    }
+
+    @Test
+    public void testDecodeStringList() {
+        byte[] input = Hex.decode("cc83646f6783676f6483636174");
+        String[] expected = new String[] {"dog", "god", "cat"};
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], bytesToAscii((byte[]) actual[i]));
+        }
+    }
+
+    @Test
+    public void testDecodeMultiList() {
+        byte[] input = Hex.decode("c6827a77c10401");
+        // expected: [ "zw", [ 4 ], 1 ]
+        Object[] expected = new Object[] {"zw", new Object[] {4}, 1};
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        // first item
+        assertEquals(expected[0], bytesToAscii((byte[]) actual[0]));
+
+        // second item
+        assertTrue(actual[1] instanceof Object[]);
+        Object[] expectedList = (Object[]) expected[1];
+        Object[] actualList = (Object[]) actual[1];
+        assertEquals(expectedList.length, actualList.length);
+        assertEquals(expectedList[0], byteArrayToInt((byte[]) actualList[0]));
+
+        // third item
+        assertEquals(expected[2], byteArrayToInt((byte[]) actual[2]));
+    }
+
+    @Test
+    public void testDecodeMaxShortList() {
+        byte[] input =
+                Hex.decode(
+                        "f784617364668471776572847a78637684617364668471776572847a78637684617364668471776572847a78637684617364668471776572");
+        String[] expected =
+                new String[] {
+                    "asdf", "qwer", "zxcv", "asdf", "qwer", "zxcv", "asdf", "qwer", "zxcv", "asdf",
+                    "qwer"
+                };
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], bytesToAscii((byte[]) actual[i]));
+        }
+    }
+
+    @Test
+    public void testDecodeLongList1() {
+        byte[] input =
+                Hex.decode(
+                        "f840cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
+        Object[] expected =
+                new Object[] {
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"}
+                };
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            assertTrue(actual[i] instanceof Object[]);
+
+            Object[] expectedList = (Object[]) expected[i];
+            Object[] actualList = (Object[]) actual[i];
+
+            assertEquals(expectedList.length, actualList.length);
+
+            for (int j = 0; j < expectedList.length; j++) {
+                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+            }
+        }
+    }
+
+    @Test
+    public void testDecodeLongList2() {
+        byte[] input =
+                Hex.decode(
+                        "f90200cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
+        Object[] expected =
+                new Object[] {
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"},
+                    new String[] {"asdf", "qwer", "zxcv"}
+                };
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            assertTrue(actual[i] instanceof Object[]);
+
+            Object[] expectedList = (Object[]) expected[i];
+            Object[] actualList = (Object[]) actual[i];
+
+            assertEquals(expectedList.length, actualList.length);
+
+            for (int j = 0; j < expectedList.length; j++) {
+                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+            }
+        }
+    }
+
+    @Test
+    public void testDecodeListOfLists1() {
+        byte[] input = Hex.decode("c4c2c0c0c0");
+        // expected: [ [ [], [] ], [] ]
+        Object[] expected =
+                new Object[] {new Object[] {new Object[0], new Object[0]}, new Object[0]};
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        // check first item
+        assertTrue(actual[0] instanceof Object[]);
+
+        Object[] expectedList = (Object[]) expected[0];
+        Object[] actualList = (Object[]) actual[0];
+
+        assertEquals(expectedList.length, actualList.length);
+
+        for (int j = 0; j < expectedList.length; j++) {
+            assertTrue(actualList[j] instanceof Object[]);
+            assertEquals(((Object[]) actualList[j]).length, 0);
+        }
+
+        // check second item
+        assertTrue(actual[1] instanceof Object[]);
+
+        actualList = (Object[]) actual[1];
+        assertEquals(actualList.length, 0);
+    }
+
+    @Test
+    public void testDecodeListOfLists2() {
+        byte[] input = Hex.decode("c7c0c1c0c3c0c1c0");
+        // expected: [ [], [[]], [ [], [[]] ] ]
+        Object[] expected =
+                new Object[] {
+                    new Object[0], // first item
+                    new Object[] {new Object[0]}, // second item
+                    new Object[] {new Object[0], new Object[] {new Object[0]}}
+                }; // third item
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        // check first item
+        assertTrue(actual[0] instanceof Object[]);
+
+        Object[] actualList = (Object[]) actual[0];
+        assertEquals(actualList.length, 0);
+
+        // check second item
+        assertTrue(actual[1] instanceof Object[]);
+
+        Object[] expectedList = (Object[]) expected[1];
+        actualList = (Object[]) actual[1];
+
+        assertEquals(expectedList.length, actualList.length);
+
+        // check second item -> sub-item
+        assertTrue(actualList[0] instanceof Object[]);
+
+        actualList = (Object[]) actualList[0];
+        assertEquals(actualList.length, 0);
+
+        // check third item
+        assertTrue(actual[2] instanceof Object[]);
+
+        expectedList = (Object[]) expected[2];
+        actualList = (Object[]) actual[2];
+
+        assertEquals(expectedList.length, actualList.length);
+
+        // check third item -> first sub-item
+        assertTrue(actualList[0] instanceof Object[]);
+
+        assertEquals(((Object[]) actualList[0]).length, 0);
+
+        // check third item -> second sub-item
+        assertTrue(actualList[1] instanceof Object[]);
+
+        actualList = (Object[]) actualList[1];
+        assertEquals(actualList.length, 1);
+
+        assertTrue(actualList[0] instanceof Object[]);
+
+        actualList = (Object[]) actualList[0];
+        assertEquals(actualList.length, 0);
+    }
+
+    @Test
+    public void testDecodeDictList() {
+        byte[] input =
+                Hex.decode(
+                        "ecca846b6579318476616c31ca846b6579328476616c32ca846b6579338476616c33ca846b6579348476616c34");
+        Object[] expected =
+                new Object[] {
+                    new String[] {"key1", "val1"},
+                    new String[] {"key2", "val2"},
+                    new String[] {"key3", "val3"},
+                    new String[] {"key4", "val4"}
+                };
+
+        Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected.length, actual.length);
+
+        for (int i = 0; i < expected.length; i++) {
+            assertTrue(actual[i] instanceof Object[]);
+
+            Object[] expectedList = (Object[]) expected[i];
+            Object[] actualList = (Object[]) actual[i];
+
+            assertEquals(expectedList.length, actualList.length);
+
+            for (int j = 0; j < expectedList.length; j++) {
+                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+            }
+        }
+    }
+
+    @Test
+    public void testDecodeByteString1() {
+        byte[] input = Hex.decode("00");
+        String expected = "\u0000";
+
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected, bytesToAscii(actual));
+        assertEquals(0, byteArrayToInt(actual));
+    }
+
+    @Test
+    public void testDecodeByteString2() {
+        byte[] input = Hex.decode("01");
+        String expected = "\u0001";
+
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected, bytesToAscii(actual));
+        assertEquals(1, byteArrayToInt(actual));
+    }
+
+    @Test
+    public void testDecodeByteString3() {
+        byte[] input = Hex.decode("7f");
+        String expected = "\u007F";
+
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertEquals(expected, bytesToAscii(actual));
+        assertEquals(127, byteArrayToInt(actual));
     }
 }
