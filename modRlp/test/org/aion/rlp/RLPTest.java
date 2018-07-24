@@ -129,7 +129,7 @@ public class RLPTest {
     }
 
     @Test
-    public void test2() throws UnknownHostException {
+    public void test2() {
 
         String peersPacket = "F8 4E 11 F8 4B C5 36 81 "
                 + "CC 0A 29 82 76 5F B8 40 D8 D6 0C 25 80 FA 79 5C "
@@ -725,22 +725,14 @@ public class RLPTest {
 
     @Test
     public void testEncodeMediumInteger() {
-        Integer test = 1000;
-        String expected = "8203e8";
+        Integer test = 1024;
+        String expected = "820400";
+
         byte[] encoderesult = RLP.encode(test);
         assertEquals(expected, Hex.toHexString(encoderesult));
 
         byte[] decodeResult = (byte[]) decode(encoderesult, 0).getDecoded();
         int result = byteArrayToInt(decodeResult);
-        assertEquals(test, Integer.valueOf(result));
-
-        test = 1024;
-        expected = "820400";
-        encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        decodeResult = (byte[]) decode(encoderesult, 0).getDecoded();
-        result = byteArrayToInt(decodeResult);
         assertEquals(test, Integer.valueOf(result));
     }
 
@@ -756,17 +748,6 @@ public class RLPTest {
     }
 
     @Test
-    public void TestEncodeEmptyList() {
-        Object[] test = new Object[0];
-        String expected = "c0";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        Object[] decodeResult = (Object[]) decode(encoderesult, 0).getDecoded();
-        assertTrue(decodeResult.length == 0);
-    }
-
-    @Test
     public void testEncodeShortStringList() {
         String[] test = new String[]{"cat", "dog"};
         String expected = "c88363617483646f67";
@@ -776,16 +757,6 @@ public class RLPTest {
         Object[] decodeResult = (Object[]) decode(encoderesult, 0).getDecoded();
         assertEquals("cat", bytesToAscii((byte[]) decodeResult[0]));
         assertEquals("dog", bytesToAscii((byte[]) decodeResult[1]));
-
-        test = new String[]{"dog", "god", "cat"};
-        expected = "cc83646f6783676f6483636174";
-        encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        decodeResult = (Object[]) decode(encoderesult, 0).getDecoded();
-        assertEquals("dog", bytesToAscii((byte[]) decodeResult[0]));
-        assertEquals("god", bytesToAscii((byte[]) decodeResult[1]));
-        assertEquals("cat", bytesToAscii((byte[]) decodeResult[2]));
     }
 
     @Test
@@ -831,42 +802,6 @@ public class RLPTest {
         assertEquals(1, byteArrayToInt(((byte[]) ((Object[]) decodeResult[1])[0])));
         assertEquals(2, byteArrayToInt(((byte[]) ((Object[]) decodeResult[1])[1])));
         assertTrue((((Object[]) decodeResult[2]).length == 0));
-    }
-
-    @Test
-    public void testEncodeEmptyListOfList() {
-        // list = [ [ [], [] ], [] ],
-        Object[] test = new Object[]{new Object[]{new Object[]{}, new Object[]{}}, new Object[]{}};
-        String expected = "c4c2c0c0c0";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        Object[] decodeResult = (Object[]) decode(encoderesult, 0).getDecoded();
-        assertTrue(decodeResult.length == 2);
-        assertTrue(((Object[]) (decodeResult[0])).length == 2);
-        assertTrue(((Object[]) (decodeResult[1])).length == 0);
-        assertTrue(((Object[]) ((Object[]) (decodeResult[0]))[0]).length == 0);
-        assertTrue(((Object[]) ((Object[]) (decodeResult[0]))[1]).length == 0);
-    }
-
-    //The set theoretical representation of two
-    @Test
-    public void testEncodeRepOfTwoListOfList() {
-        //list: [ [], [[]], [ [], [[]] ] ]
-        Object[] test = new Object[]{new Object[]{}, new Object[]{new Object[]{}}, new Object[]{new Object[]{}, new Object[]{new Object[]{}}}};
-        String expected = "c7c0c1c0c3c0c1c0";
-        byte[] encoderesult = RLP.encode(test);
-        assertEquals(expected, Hex.toHexString(encoderesult));
-
-        Object[] decodeResult = (Object[]) decode(encoderesult, 0).getDecoded();
-        assertTrue(decodeResult.length == 3);
-        assertTrue(((Object[]) (decodeResult[0])).length == 0);
-        assertTrue(((Object[]) (decodeResult[1])).length == 1);
-        assertTrue(((Object[]) (decodeResult[2])).length == 2);
-        assertTrue(((Object[]) ((Object[]) (decodeResult[1]))[0]).length == 0);
-        assertTrue(((Object[]) ((Object[]) (decodeResult[2]))[0]).length == 0);
-        assertTrue(((Object[]) ((Object[]) (decodeResult[2]))[1]).length == 1);
-        assertTrue(((Object[]) ((Object[]) ((Object[]) (decodeResult[2]))[1])[0]).length == 0);
     }
 
     @Test
