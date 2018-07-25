@@ -391,7 +391,7 @@ public class NodeMgr implements INodeMgr {
                 activeIt.remove();
             }
 
-            if (!node.getChannel().isConnected()) {
+            else if (!node.getChannel().isConnected()) {
                 p2pMgr.closeSocket(node.getChannel(),
                     "channel-already-closed node=" + node.getIdShort() + " ip=" + node.getIpStr());
                 activeIt.remove();
