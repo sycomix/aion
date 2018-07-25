@@ -23,7 +23,6 @@
 package org.aion.rlp;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth.assertWithMessage;
 import static org.aion.base.util.ByteUtil.byteArrayToInt;
 import static org.aion.rlp.RLPTest.bytesToAscii;
 import static org.junit.Assert.assertArrayEquals;
@@ -137,7 +136,7 @@ public class RLPSpecTest {
     /**
      * Asserts that the same encoding is obtained by the different encode methods.
      *
-     * @param input a {@link Integer} value to be encoded
+     * @param input an {@link Integer} value to be encoded
      * @param expected the expected encoding
      */
     public void assertEncodeInt(int input, byte[] expected) {
@@ -481,14 +480,36 @@ public class RLPSpecTest {
         assertEquals(expected, bytesToAscii(actual));
     }
 
+    /**
+     * Asserts that the same decoding is obtained by the different encode methods.
+     *
+     * @param input an {@link Integer} value to be encoded
+     * @param expected the expected encoding
+     */
+    public void assertDecodeInt(byte[] input, int expected) {
+        // test as int
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertThat(byteArrayToInt(actual)).isEqualTo(expected);
+
+        assertThat(RLP.decodeInt(input, 0)).isEqualTo(expected);
+        assertThat(RLP.decodeLongInt(input, 0)).isEqualTo(expected);
+
+        // TODO: test as big int
+    }
+
     @Test
     public void testDecodeZero() {
-        // TODO: check discrepancy between RLP json files wrt 0
         byte[] input = Hex.decode("80");
-        String expected = ""; // note that it decodes to empty list
 
+        // expected = "" with the general method
         String actual = (String) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo("");
+
+        // expected = 0 with decodeInt & decodeLongInt
+        assertThat(RLP.decodeInt(input, 0)).isEqualTo(0);
+        assertThat(RLP.decodeLongInt(input, 0)).isEqualTo(0);
+
+        // TODO: test as big int
     }
 
     @Test
@@ -496,8 +517,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("01");
         int expected = 1;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -505,8 +525,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("10");
         int expected = 16;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -514,8 +533,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("4f");
         int expected = 79;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -523,8 +541,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("7f");
         int expected = 127;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -532,8 +549,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("8180");
         int expected = 128;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -541,8 +557,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("8203e8");
         int expected = 1000;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
@@ -550,8 +565,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("830186a0");
         int expected = 100000;
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, byteArrayToInt(actual));
+        assertDecodeInt(input, expected);
     }
 
     @Test
