@@ -477,9 +477,6 @@ public class RLPSpecTest {
                         "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69");
         String expected = "Lorem ipsum dolor sit amet, consectetur adipisicing eli"; // length = 55
 
-        byte[] actual1 = (byte[]) EthRLP.decode(input, 0).getDecoded();
-        assertThat(bytesToAscii(actual1)).isEqualTo(expected);
-
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(bytesToAscii(actual)).isEqualTo(expected);
     }

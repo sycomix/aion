@@ -160,36 +160,24 @@ public class RLP {
      * decode native java type long.
      *
      * @TODO: TEST CASE COVER!
-     *
-     * @param bs
-     * @return
      */
     public static long decodeLongInt(byte[] data, int index) {
-        int value = 0;
         // NOTE: there are two ways zero can be encoded - 0x00 and
         // OFFSET_SHORT_ITEM
 
-        if ((data[index] & 0xFF) < OFFSET_SHORT_ITEM) {
+        int prefix = data[index] & 0xFF;
+
+        if (prefix < OFFSET_SHORT_ITEM) {
             return data[index];
-        } else if ((data[index] & 0xFF) >= OFFSET_SHORT_ITEM && (data[index] & 0xFF) <= OFFSET_SHORT_ITEM + 4) {
-
-            /**
-             * TODO: yao, test if this is correct need this append or else the
-             * pos/neg big will propagate due to upcast
-             */
-            return 0x00000000FFFFFFFFL & decodeInt(data, index);
-        }
-
-        if ((data[index] & 0xFF) >= OFFSET_SHORT_ITEM && (data[index] & 0xFF) <= OFFSET_SHORT_ITEM + 8) {
-            int len = (byte) (data[index] - OFFSET_SHORT_ITEM);
-
-            ByteBuffer bb = ByteBuffer.allocate(len);
-            for (int i = 1; i <= len; i++) {
-                bb.put(data[index + i]);
+        } else if (prefix <= OFFSET_LONG_ITEM) {
+            long value = 0;
+            byte length = (byte) (data[index] - OFFSET_SHORT_ITEM);
+            byte pow = (byte) (length - 1);
+            for (int i = 1; i <= length; ++i) {
+                value += (long) (data[index + i] & 0xFF) << (8 * pow);
+                pow--;
             }
-            bb.rewind();
-            return bb.getLong();
-
+            return value;
         } else {
             throw new RuntimeException("wrong decode attempt");
         }
@@ -202,24 +190,6 @@ public class RLP {
         } else {
             return data[index];
         }
-    }
-
-    private static long decodeLong(byte[] data, int index) {
-
-        long value = 0;
-
-        if ((data[index] & 0xFF) > OFFSET_SHORT_ITEM && (data[index] & 0xFF) < OFFSET_LONG_ITEM) {
-
-            byte length = (byte) (data[index] - OFFSET_SHORT_ITEM);
-            byte pow = (byte) (length - 1);
-            for (int i = 1; i <= length; ++i) {
-                value += (data[index + i] & 0xFF) << (8 * pow);
-                pow--;
-            }
-        } else {
-            throw new RuntimeException("wrong decode attempt");
-        }
-        return value;
     }
 
     private static String decodeStringItem(byte[] data, int index) {
@@ -790,22 +760,15 @@ public class RLP {
 
     /**
      * @TODO: TEST CASE COVER!
-     *
-     * @param l
-     * @return
      */
-    public static byte[] encodeLong(long l) {
-        if ((l & 0x00000000FFFFFFFFL) == l) {
-            return encodeInt((int) l);
+    public static byte[] encodeLong(long input) {
+        byte[] inputAsBytes = (input == 0) ? ByteUtil.EMPTY_BYTE_ARRAY
+            : asUnsignedByteArray(BigInteger.valueOf(input));
+        if (inputAsBytes.length == 1 && (inputAsBytes[0] & 0xff) < 0x80) {
+            return inputAsBytes;
         } else {
-            ByteBuffer bb = ByteBuffer.allocate(8);
-            bb.putLong(l);
-            byte[] bs = bb.array();
-
-            byte[] out = new byte[9];
-            out[0] = (byte) (OFFSET_SHORT_ITEM + 8);
-            System.arraycopy(bs, 0, out, 1, 8);
-            return out;
+            byte[] firstByte = encodeLength(inputAsBytes.length, OFFSET_SHORT_ITEM);
+            return concatenate(firstByte, inputAsBytes);
         }
     }
 

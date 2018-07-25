@@ -81,7 +81,7 @@ public class RLPSpecExtraTest {
         long input = 4295000060L;
         byte[] expected = Hex.decode("850100007ffc");
 
-        // TODO        assertEncodeLong(input, expected);
+        assertEncodeLong(input, expected);
     }
 
     @Test
@@ -165,7 +165,7 @@ public class RLPSpecExtraTest {
         byte[] input = Hex.decode("850100007ffc");
         long expected = 4295000060L;
 
-        // TODO    assertDecodeLong(input, expected);
+        assertDecodeLong(input, expected);
     }
 
     @Test
