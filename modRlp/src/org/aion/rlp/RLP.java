@@ -726,7 +726,7 @@ public class RLP {
             return concatenate(prefix, output);
         } else {
             byte[] inputAsBytes = toBytes(input);
-            if (inputAsBytes.length == 1 && (inputAsBytes[0] & 0xff) <= 0x80) {
+            if (inputAsBytes.length == 1 && (inputAsBytes[0] & 0xff) <= 0x7f) {
                 return inputAsBytes;
             } else {
                 byte[] firstByte = encodeLength(inputAsBytes.length, OFFSET_SHORT_ITEM);
@@ -1041,15 +1041,26 @@ public class RLP {
         } else if (input instanceof String) {
             String inputString = (String) input;
             return inputString.getBytes();
-        } else if (input instanceof Long) {
-            Long inputLong = (Long) input;
-            return (inputLong == 0) ? ByteUtil.EMPTY_BYTE_ARRAY : asUnsignedByteArray(BigInteger.valueOf(inputLong));
+        } else if (input instanceof Byte) {
+            Byte inputInt = (Byte) input;
+            return (inputInt == 0) ? ByteUtil.EMPTY_BYTE_ARRAY
+                : asUnsignedByteArray(BigInteger.valueOf(inputInt));
+        } else if (input instanceof Short) {
+            Short inputInt = (Short) input;
+            return (inputInt == 0) ? ByteUtil.EMPTY_BYTE_ARRAY
+                : asUnsignedByteArray(BigInteger.valueOf(inputInt));
         } else if (input instanceof Integer) {
             Integer inputInt = (Integer) input;
-            return (inputInt == 0) ? ByteUtil.EMPTY_BYTE_ARRAY : asUnsignedByteArray(BigInteger.valueOf(inputInt));
+            return (inputInt == 0) ? ByteUtil.EMPTY_BYTE_ARRAY
+                : asUnsignedByteArray(BigInteger.valueOf(inputInt));
+        } else if (input instanceof Long) {
+            Long inputLong = (Long) input;
+            return (inputLong == 0) ? ByteUtil.EMPTY_BYTE_ARRAY
+                : asUnsignedByteArray(BigInteger.valueOf(inputLong));
         } else if (input instanceof BigInteger) {
             BigInteger inputBigInt = (BigInteger) input;
-            return (inputBigInt.equals(BigInteger.ZERO)) ? ByteUtil.EMPTY_BYTE_ARRAY : asUnsignedByteArray(inputBigInt);
+            return (inputBigInt.equals(BigInteger.ZERO)) ? ByteUtil.EMPTY_BYTE_ARRAY
+                : asUnsignedByteArray(inputBigInt);
         } else if (input instanceof Value) {
             Value val = (Value) input;
             return toBytes(val.asObj());

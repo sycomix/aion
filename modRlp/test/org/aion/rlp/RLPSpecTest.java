@@ -22,6 +22,8 @@
  */
 package org.aion.rlp;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.aion.base.util.ByteUtil.byteArrayToInt;
 import static org.aion.rlp.RLPTest.bytesToAscii;
 import static org.junit.Assert.assertArrayEquals;
@@ -96,68 +98,112 @@ public class RLPSpecTest {
         assertArrayEquals(expected, actual);
     }
 
+    /**
+     * Asserts that the same encoding is obtained by the different encode methods.
+     *
+     * @param input a {@link Byte} value to be encoded
+     * @param expected the expected encoding
+     */
+    public void assertEncodeByte(byte input, byte[] expected) {
+        // test as byte
+        byte[] actual = RLP.encode(input);
+        assertThat(actual).isEqualTo(expected);
+
+        actual = RLP.encodeByte(input);
+        assertThat(actual).isEqualTo(expected);
+
+        // test as short and higher
+        assertEncodeShort((short) input, expected);
+    }
+
+    /**
+     * Asserts that the same encoding is obtained by the different encode methods.
+     *
+     * @param input a {@link Short} value to be encoded
+     * @param expected the expected encoding
+     */
+    public void assertEncodeShort(short input, byte[] expected) {
+        // test as short
+        byte[] actual = RLP.encode(input);
+        assertThat(actual).isEqualTo(expected);
+
+        actual = RLP.encodeShort(input);
+        assertThat(actual).isEqualTo(expected);
+
+        // test as int and higher
+        assertEncodeInt((int) input, expected);
+    }
+
+    /**
+     * Asserts that the same encoding is obtained by the different encode methods.
+     *
+     * @param input a {@link Integer} value to be encoded
+     * @param expected the expected encoding
+     */
+    public void assertEncodeInt(int input, byte[] expected) {
+        byte[] actual = RLP.encode(input);
+        assertThat(actual).isEqualTo(expected);
+
+        actual = RLP.encodeInt(input);
+        assertThat(actual).isEqualTo(expected);
+
+        // TODO: test as long and big int
+    }
+
     @Test
     public void testEncodeZero() {
-        int input = 0;
+        byte input = 0;
         byte[] expected = Hex.decode("80");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeByte(input, expected);
     }
 
     @Test
     public void testEncodeSmallInt1() {
-        int input = 1;
+        byte input = 1;
         byte[] expected = Hex.decode("01");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeByte(input, expected);
     }
 
     @Test
     public void testEncodeSmallInt2() {
-        int input = 16;
+        byte input = 16;
         byte[] expected = Hex.decode("10");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeByte(input, expected);
     }
 
     @Test
     public void testEncodeSmallInt3() {
-        int input = 79;
+        byte input = 79;
         byte[] expected = Hex.decode("4f");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeByte(input, expected);
     }
 
     @Test
     public void testEncodeSmallInt4() {
-        int input = 127;
+        byte input = 127;
         byte[] expected = Hex.decode("7f");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeByte(input, expected);
     }
 
     @Test
     public void testEncodeMediumInt1() {
-        // TODO: look into broken test
-        //        int input = 128;
-        //        byte[] expected = Hex.decode("8180");
-        //
-        //        byte[] actual = RLP.encode(input);
-        //        assertArrayEquals(expected, actual);
+        short input = 128;
+        byte[] expected = Hex.decode("8180");
+
+        assertEncodeShort(input, expected);
     }
 
     @Test
     public void testEncodeMediumInt2() {
-        int input = 1000;
+        short input = 1000;
         byte[] expected = Hex.decode("8203e8");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeShort(input, expected);
     }
 
     @Test
@@ -166,6 +212,9 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("830186a0");
 
         byte[] actual = RLP.encode(input);
+        assertArrayEquals(expected, actual);
+
+        actual = RLP.encodeInt(input);
         assertArrayEquals(expected, actual);
     }
 
