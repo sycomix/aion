@@ -24,6 +24,7 @@ package org.aion.rlp;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.aion.base.util.ByteUtil.byteArrayToInt;
+import static org.aion.base.util.ByteUtil.byteArrayToLong;
 import static org.aion.rlp.RLPTest.bytesToAscii;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -103,7 +104,7 @@ public class RLPSpecTest {
      * @param input a {@link Byte} value to be encoded
      * @param expected the expected encoding
      */
-    public void assertEncodeByte(byte input, byte[] expected) {
+    public static void assertEncodeByte(byte input, byte[] expected) {
         // test as byte
         byte[] actual = RLP.encode(input);
         assertThat(actual).isEqualTo(expected);
@@ -121,7 +122,7 @@ public class RLPSpecTest {
      * @param input a {@link Short} value to be encoded
      * @param expected the expected encoding
      */
-    public void assertEncodeShort(short input, byte[] expected) {
+    public static void assertEncodeShort(short input, byte[] expected) {
         // test as short
         byte[] actual = RLP.encode(input);
         assertThat(actual).isEqualTo(expected);
@@ -139,14 +140,46 @@ public class RLPSpecTest {
      * @param input an {@link Integer} value to be encoded
      * @param expected the expected encoding
      */
-    public void assertEncodeInt(int input, byte[] expected) {
+    public static void assertEncodeInt(int input, byte[] expected) {
         byte[] actual = RLP.encode(input);
         assertThat(actual).isEqualTo(expected);
 
         actual = RLP.encodeInt(input);
         assertThat(actual).isEqualTo(expected);
 
-        // TODO: test as long and big int
+        // test as long and higher
+        assertEncodeLong((long) input, expected);
+    }
+
+    /**
+     * Asserts that the same encoding is obtained by the different encode methods.
+     *
+     * @param input a {@link Long} value to be encoded
+     * @param expected the expected encoding
+     */
+    public static void assertEncodeLong(long input, byte[] expected) {
+        byte[] actual = RLP.encode(input);
+        assertThat(actual).isEqualTo(expected);
+
+        actual = RLP.encodeLong(input);
+        assertThat(actual).isEqualTo(expected);
+
+        // test as big integer
+        assertEncodeBigInteger(BigInteger.valueOf(input), expected);
+    }
+
+    /**
+     * Asserts that the same encoding is obtained by the different encode methods.
+     *
+     * @param input a {@link BigInteger} value to be encoded
+     * @param expected the expected encoding
+     */
+    public static void assertEncodeBigInteger(BigInteger input, byte[] expected) {
+        byte[] actual = RLP.encode(input);
+        assertThat(actual).isEqualTo(expected);
+
+        actual = RLP.encodeBigInteger(input);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -158,7 +191,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeSmallInt1() {
+    public void testEncodeByte1() {
         byte input = 1;
         byte[] expected = Hex.decode("01");
 
@@ -166,7 +199,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeSmallInt2() {
+    public void testEncodeByte2() {
         byte input = 16;
         byte[] expected = Hex.decode("10");
 
@@ -174,7 +207,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeSmallInt3() {
+    public void testEncodeByte3() {
         byte input = 79;
         byte[] expected = Hex.decode("4f");
 
@@ -182,7 +215,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeSmallInt4() {
+    public void testEncodeByte4() {
         byte input = 127;
         byte[] expected = Hex.decode("7f");
 
@@ -190,7 +223,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeMediumInt1() {
+    public void testEncodeShort1() {
         short input = 128;
         byte[] expected = Hex.decode("8180");
 
@@ -198,7 +231,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeMediumInt2() {
+    public void testEncodeShort2() {
         short input = 1000;
         byte[] expected = Hex.decode("8203e8");
 
@@ -206,15 +239,11 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testEncodeMediumInt3() {
+    public void testEncodeInt1() {
         int input = 100000;
         byte[] expected = Hex.decode("830186a0");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
-
-        actual = RLP.encodeInt(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeInt(input, expected);
     }
 
     @Test
@@ -222,8 +251,7 @@ public class RLPSpecTest {
         BigInteger input = new BigInteger("83729609699884896815286331701780722", 10);
         byte[] expected = Hex.decode("8f102030405060708090a0b0c0d0e0f2");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeBigInteger(input, expected);
     }
 
     @Test
@@ -233,8 +261,7 @@ public class RLPSpecTest {
                         "105315505618206987246253880190783558935785933862974822347068935681", 10);
         byte[] expected = Hex.decode("9c0100020003000400050006000700080009000a000b000c000d000e01");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeBigInteger(input, expected);
     }
 
     @Test
@@ -246,8 +273,7 @@ public class RLPSpecTest {
         byte[] expected =
                 Hex.decode("a1010000000000000000000000000000000000000000000000000000000000000000");
 
-        byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertEncodeBigInteger(input, expected);
     }
 
     @Test
@@ -446,8 +472,9 @@ public class RLPSpecTest {
 
     @Test
     public void testDecodeShortString2() {
-        // TODO: find issue
-        //        byte[] input = Hex.decode(
+        // TODO
+        //        byte[] input =
+        //                Hex.decode(
         //
         // "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69");
         //        String expected = "Lorem ipsum dolor sit amet, consectetur adipisicing eli"; //
@@ -483,18 +510,46 @@ public class RLPSpecTest {
     /**
      * Asserts that the same decoding is obtained by the different encode methods.
      *
-     * @param input an {@link Integer} value to be encoded
-     * @param expected the expected encoding
+     * @param input the given encoding
+     * @param expected the expected {@link Integer} value
      */
-    public void assertDecodeInt(byte[] input, int expected) {
+    public static void assertDecodeInt(byte[] input, int expected) {
         // test as int
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(byteArrayToInt(actual)).isEqualTo(expected);
-
         assertThat(RLP.decodeInt(input, 0)).isEqualTo(expected);
+
+        // test as long and upper
+        assertDecodeLong(input, (long) expected);
+    }
+
+    /**
+     * Asserts that the same decoding is obtained by the different encode methods.
+     *
+     * @param input the given encoding
+     * @param expected the expected {@link Long} value
+     */
+    public static void assertDecodeLong(byte[] input, long expected) {
+        // test as long
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertThat(byteArrayToLong(actual)).isEqualTo(expected);
         assertThat(RLP.decodeLongInt(input, 0)).isEqualTo(expected);
 
-        // TODO: test as big int
+        // test as big integer
+        assertDecodeBigInteger(input, BigInteger.valueOf(expected));
+    }
+
+    /**
+     * Asserts that the same decoding is obtained by the different encode methods.
+     *
+     * @param input the given encoding
+     * @param expected the expected {@link BigInteger} value
+     */
+    public static void assertDecodeBigInteger(byte[] input, BigInteger expected) {
+        // test as big integer
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertThat(new BigInteger(1, actual)).isEqualTo(expected);
+        // TODO       assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(expected);
     }
 
     @Test
@@ -508,12 +563,11 @@ public class RLPSpecTest {
         // expected = 0 with decodeInt & decodeLongInt
         assertThat(RLP.decodeInt(input, 0)).isEqualTo(0);
         assertThat(RLP.decodeLongInt(input, 0)).isEqualTo(0);
-
-        // TODO: test as big int
+        // TODO        assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(BigInteger.ZERO);
     }
 
     @Test
-    public void testDecodeSmallInt1() {
+    public void testDecodeByte1() {
         byte[] input = Hex.decode("01");
         int expected = 1;
 
@@ -521,7 +575,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeSmallInt2() {
+    public void testDecodeByte2() {
         byte[] input = Hex.decode("10");
         int expected = 16;
 
@@ -529,7 +583,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeSmallInt3() {
+    public void testDecodeByte3() {
         byte[] input = Hex.decode("4f");
         int expected = 79;
 
@@ -537,7 +591,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeSmallInt4() {
+    public void testDecodeByte4() {
         byte[] input = Hex.decode("7f");
         int expected = 127;
 
@@ -545,7 +599,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeMediumInt1() {
+    public void testDecodeShort1() {
         byte[] input = Hex.decode("8180");
         int expected = 128;
 
@@ -553,7 +607,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeMediumInt2() {
+    public void testDecodeShort2() {
         byte[] input = Hex.decode("8203e8");
         int expected = 1000;
 
@@ -561,7 +615,7 @@ public class RLPSpecTest {
     }
 
     @Test
-    public void testDecodeMediumInt3() {
+    public void testDecodeInt1() {
         byte[] input = Hex.decode("830186a0");
         int expected = 100000;
 
@@ -573,8 +627,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("8f102030405060708090a0b0c0d0e0f2");
         BigInteger expected = new BigInteger("83729609699884896815286331701780722", 10);
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, new BigInteger(1, actual));
+        assertDecodeBigInteger(input, expected);
     }
 
     @Test
@@ -584,8 +637,7 @@ public class RLPSpecTest {
                 new BigInteger(
                         "105315505618206987246253880190783558935785933862974822347068935681", 10);
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, new BigInteger(1, actual));
+        assertDecodeBigInteger(input, expected);
     }
 
     @Test
@@ -597,8 +649,7 @@ public class RLPSpecTest {
                         "115792089237316195423570985008687907853269984665640564039457584007913129639936",
                         10);
 
-        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, new BigInteger(1, actual));
+        assertDecodeBigInteger(input, expected);
     }
 
     @Test
