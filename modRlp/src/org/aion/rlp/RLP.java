@@ -220,10 +220,36 @@ public class RLP {
 
     public static BigInteger decodeBigInteger(byte[] data, int index) {
 
-        final int length = calculateLength(data, index);
-        byte[] valueBytes = new byte[length];
-        System.arraycopy(data, index, valueBytes, 0, length);
-        return new BigInteger(1, valueBytes);
+        int prefix = data[index] & 0xFF;
+
+        if (prefix < OFFSET_SHORT_ITEM) {
+            return BigInteger.valueOf(data[index]);
+        } else if (prefix <= OFFSET_LONG_ITEM) {
+            int length = prefix - OFFSET_SHORT_ITEM;
+
+            byte[] copy = new byte[length];
+            System.arraycopy(data, index + 1, copy, 0, Math.min(data.length - index - 1, length));
+
+            return new BigInteger(1, copy);
+        } else if (prefix < OFFSET_SHORT_LIST) {
+            int lengthOfLength = prefix - OFFSET_LONG_ITEM;
+
+            // find length of number
+            byte[] copy = new byte[lengthOfLength];
+            System.arraycopy(data, index + 1, copy, 0,
+                Math.min(data.length - index - 1, lengthOfLength));
+
+            int length = new BigInteger(1, copy).intValue();
+
+            // get value
+            copy = new byte[length];
+            System.arraycopy(data, index + 1 + lengthOfLength, copy, 0,
+                Math.min(data.length - index - 1 - lengthOfLength, length));
+
+            return new BigInteger(1, copy);
+        } else {
+            throw new RuntimeException("wrong decode attempt");
+        }
     }
 
     public static byte[] decodeByteArray(byte[] data, int index) {

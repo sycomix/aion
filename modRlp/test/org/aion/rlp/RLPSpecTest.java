@@ -546,11 +546,11 @@ public class RLPSpecTest {
         // test as big integer
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(new BigInteger(1, actual)).isEqualTo(expected);
-        // TODO       assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(expected);
+        assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(expected);
     }
 
     @Test
-    public void testDecodeZero() {
+    public void testDecodeZero1() {
         byte[] input = Hex.decode("80");
 
         // expected = "" with the general method
@@ -560,7 +560,15 @@ public class RLPSpecTest {
         // expected = 0 with decodeInt & decodeLongInt
         assertThat(RLP.decodeInt(input, 0)).isEqualTo(0);
         assertThat(RLP.decodeLongInt(input, 0)).isEqualTo(0);
-        // TODO        assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(BigInteger.ZERO);
+        assertThat(RLP.decodeBigInteger(input, 0)).isEqualTo(BigInteger.ZERO);
+    }
+
+    @Test
+    public void testDecodeZero2() {
+        byte[] input = Hex.decode("00");
+        int expected = 0;
+
+        assertDecodeInt(input, expected);
     }
 
     @Test
