@@ -26,9 +26,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.aion.base.util.ByteUtil.byteArrayToInt;
 import static org.aion.base.util.ByteUtil.byteArrayToLong;
 import static org.aion.rlp.RLPTest.bytesToAscii;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.math.BigInteger;
 import org.aion.base.util.Hex;
@@ -52,7 +49,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("80");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -61,7 +58,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("83646f67");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -72,7 +69,7 @@ public class RLPSpecTest {
                         "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -83,7 +80,7 @@ public class RLPSpecTest {
                         "b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -95,7 +92,7 @@ public class RLPSpecTest {
                         "b904004c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e6720656c69742e20437572616269747572206d6175726973206d61676e612c20737573636970697420736564207665686963756c61206e6f6e2c20696163756c697320666175636962757320746f72746f722e2050726f696e20737573636970697420756c74726963696573206d616c6573756164612e204475697320746f72746f7220656c69742c2064696374756d2071756973207472697374697175652065752c20756c7472696365732061742072697375732e204d6f72626920612065737420696d70657264696574206d6920756c6c616d636f7270657220616c6971756574207375736369706974206e6563206c6f72656d2e2041656e65616e2071756973206c656f206d6f6c6c69732c2076756c70757461746520656c6974207661726975732c20636f6e73657175617420656e696d2e204e756c6c6120756c74726963657320747572706973206a7573746f2c20657420706f73756572652075726e6120636f6e7365637465747572206e65632e2050726f696e206e6f6e20636f6e76616c6c6973206d657475732e20446f6e65632074656d706f7220697073756d20696e206d617572697320636f6e67756520736f6c6c696369747564696e2e20566573746962756c756d20616e746520697073756d207072696d697320696e206661756369627573206f726369206c756374757320657420756c74726963657320706f737565726520637562696c69612043757261653b2053757370656e646973736520636f6e76616c6c69732073656d2076656c206d617373612066617563696275732c2065676574206c6163696e6961206c616375732074656d706f722e204e756c6c61207175697320756c747269636965732070757275732e2050726f696e20617563746f722072686f6e637573206e69626820636f6e64696d656e74756d206d6f6c6c69732e20416c697175616d20636f6e73657175617420656e696d206174206d65747573206c75637475732c206120656c656966656e6420707572757320656765737461732e20437572616269747572206174206e696268206d657475732e204e616d20626962656e64756d2c206e6571756520617420617563746f72207472697374697175652c206c6f72656d206c696265726f20616c697175657420617263752c206e6f6e20696e74657264756d2074656c6c7573206c65637475732073697420616d65742065726f732e20437261732072686f6e6375732c206d65747573206163206f726e617265206375727375732c20646f6c6f72206a7573746f20756c747269636573206d657475732c20617420756c6c616d636f7270657220766f6c7574706174");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     /**
@@ -282,7 +279,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("c0");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -291,7 +288,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("cc83646f6783676f6483636174");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -301,7 +298,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("c6827a77c10401");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -316,7 +313,7 @@ public class RLPSpecTest {
                         "f784617364668471776572847a78637684617364668471776572847a78637684617364668471776572847a78637684617364668471776572");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -333,7 +330,7 @@ public class RLPSpecTest {
                         "f840cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -378,7 +375,7 @@ public class RLPSpecTest {
                         "f90200cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -388,7 +385,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("c4c2c0c0c0");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -403,7 +400,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("c7c0c1c0c3c0c1c0");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -420,7 +417,7 @@ public class RLPSpecTest {
                         "ecca846b6579318476616c31ca846b6579328476616c32ca846b6579338476616c33ca846b6579348476616c34");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -429,7 +426,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("00");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -438,7 +435,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("01");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -447,7 +444,7 @@ public class RLPSpecTest {
         byte[] expected = Hex.decode("7f");
 
         byte[] actual = RLP.encode(input);
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     // DECODING
@@ -458,7 +455,7 @@ public class RLPSpecTest {
         String expected = "";
 
         String actual = (String) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -662,7 +659,7 @@ public class RLPSpecTest {
         byte[] input = Hex.decode("c0");
 
         Object[] decodeResult = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertTrue(decodeResult.length == 0);
+        assertThat(decodeResult.length == 0);
     }
 
     @Test
@@ -671,10 +668,10 @@ public class RLPSpecTest {
         String[] expected = new String[] {"dog", "god", "cat"};
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], bytesToAscii((byte[]) actual[i]));
+            assertThat(bytesToAscii((byte[]) actual[i])).isEqualTo(expected[i]);
         }
     }
 
@@ -685,20 +682,20 @@ public class RLPSpecTest {
         Object[] expected = new Object[] {"zw", new Object[] {4}, 1};
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         // first item
-        assertEquals(expected[0], bytesToAscii((byte[]) actual[0]));
+        assertThat(bytesToAscii((byte[]) actual[0])).isEqualTo(expected[0]);
 
         // second item
-        assertTrue(actual[1] instanceof Object[]);
+        assertThat(actual[1] instanceof Object[]).isTrue();
         Object[] expectedList = (Object[]) expected[1];
         Object[] actualList = (Object[]) actual[1];
-        assertEquals(expectedList.length, actualList.length);
-        assertEquals(expectedList[0], byteArrayToInt((byte[]) actualList[0]));
+        assertThat(actualList.length).isEqualTo(expectedList.length);
+        assertThat(byteArrayToInt((byte[]) actualList[0])).isEqualTo(expectedList[0]);
 
         // third item
-        assertEquals(expected[2], byteArrayToInt((byte[]) actual[2]));
+        assertThat(byteArrayToInt((byte[]) actual[2])).isEqualTo(expected[2]);
     }
 
     @Test
@@ -713,10 +710,10 @@ public class RLPSpecTest {
                 };
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], bytesToAscii((byte[]) actual[i]));
+            assertThat(bytesToAscii((byte[]) actual[i])).isEqualTo(expected[i]);
         }
     }
 
@@ -734,18 +731,18 @@ public class RLPSpecTest {
                 };
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         for (int i = 0; i < expected.length; i++) {
-            assertTrue(actual[i] instanceof Object[]);
+            assertThat(actual[i] instanceof Object[]).isTrue();
 
             Object[] expectedList = (Object[]) expected[i];
             Object[] actualList = (Object[]) actual[i];
 
-            assertEquals(expectedList.length, actualList.length);
+            assertThat(actualList.length).isEqualTo(expectedList.length);
 
             for (int j = 0; j < expectedList.length; j++) {
-                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+                assertThat(bytesToAscii((byte[]) actualList[j])).isEqualTo(expectedList[j]);
             }
         }
     }
@@ -792,18 +789,18 @@ public class RLPSpecTest {
                 };
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         for (int i = 0; i < expected.length; i++) {
-            assertTrue(actual[i] instanceof Object[]);
+            assertThat(actual[i] instanceof Object[]).isTrue();
 
             Object[] expectedList = (Object[]) expected[i];
             Object[] actualList = (Object[]) actual[i];
 
-            assertEquals(expectedList.length, actualList.length);
+            assertThat(actualList.length).isEqualTo(expectedList.length);
 
             for (int j = 0; j < expectedList.length; j++) {
-                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+                assertThat(bytesToAscii((byte[]) actualList[j])).isEqualTo(expectedList[j]);
             }
         }
     }
@@ -816,26 +813,26 @@ public class RLPSpecTest {
                 new Object[] {new Object[] {new Object[0], new Object[0]}, new Object[0]};
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         // check first item
-        assertTrue(actual[0] instanceof Object[]);
+        assertThat(actual[0] instanceof Object[]).isTrue();
 
         Object[] expectedList = (Object[]) expected[0];
         Object[] actualList = (Object[]) actual[0];
 
-        assertEquals(expectedList.length, actualList.length);
+        assertThat(actualList.length).isEqualTo(expectedList.length);
 
         for (int j = 0; j < expectedList.length; j++) {
-            assertTrue(actualList[j] instanceof Object[]);
-            assertEquals(((Object[]) actualList[j]).length, 0);
+            assertThat(actualList[j] instanceof Object[]).isTrue();
+            assertThat(((Object[]) actualList[j]).length).isEqualTo(0);
         }
 
         // check second item
-        assertTrue(actual[1] instanceof Object[]);
+        assertThat(actual[1] instanceof Object[]).isTrue();
 
         actualList = (Object[]) actual[1];
-        assertEquals(actualList.length, 0);
+        assertThat(actualList.length).isEqualTo(0);
     }
 
     @Test
@@ -850,51 +847,51 @@ public class RLPSpecTest {
                 }; // third item
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         // check first item
-        assertTrue(actual[0] instanceof Object[]);
+        assertThat(actual[0] instanceof Object[]).isTrue();
 
         Object[] actualList = (Object[]) actual[0];
-        assertEquals(actualList.length, 0);
+        assertThat(actualList.length).isEqualTo(0);
 
         // check second item
-        assertTrue(actual[1] instanceof Object[]);
+        assertThat(actual[1] instanceof Object[]).isTrue();
 
         Object[] expectedList = (Object[]) expected[1];
         actualList = (Object[]) actual[1];
 
-        assertEquals(expectedList.length, actualList.length);
+        assertThat(actualList.length).isEqualTo(expectedList.length);
 
         // check second item -> sub-item
-        assertTrue(actualList[0] instanceof Object[]);
+        assertThat(actualList[0] instanceof Object[]).isTrue();
 
         actualList = (Object[]) actualList[0];
-        assertEquals(actualList.length, 0);
+        assertThat(actualList.length).isEqualTo(0);
 
         // check third item
-        assertTrue(actual[2] instanceof Object[]);
+        assertThat(actual[2] instanceof Object[]).isTrue();
 
         expectedList = (Object[]) expected[2];
         actualList = (Object[]) actual[2];
 
-        assertEquals(expectedList.length, actualList.length);
+        assertThat(actualList.length).isEqualTo(expectedList.length);
 
         // check third item -> first sub-item
-        assertTrue(actualList[0] instanceof Object[]);
+        assertThat(actualList[0] instanceof Object[]).isTrue();
 
-        assertEquals(((Object[]) actualList[0]).length, 0);
+        assertThat(((Object[]) actualList[0]).length).isEqualTo(0);
 
         // check third item -> second sub-item
-        assertTrue(actualList[1] instanceof Object[]);
+        assertThat(actualList[1] instanceof Object[]).isTrue();
 
         actualList = (Object[]) actualList[1];
-        assertEquals(actualList.length, 1);
+        assertThat(actualList.length).isEqualTo(1);
 
-        assertTrue(actualList[0] instanceof Object[]);
+        assertThat(actualList[0] instanceof Object[]).isTrue();
 
         actualList = (Object[]) actualList[0];
-        assertEquals(actualList.length, 0);
+        assertThat(actualList.length).isEqualTo(0);
     }
 
     @Test
@@ -911,18 +908,18 @@ public class RLPSpecTest {
                 };
 
         Object[] actual = (Object[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected.length, actual.length);
+        assertThat(actual.length).isEqualTo(expected.length);
 
         for (int i = 0; i < expected.length; i++) {
-            assertTrue(actual[i] instanceof Object[]);
+            assertThat(actual[i] instanceof Object[]).isTrue();
 
             Object[] expectedList = (Object[]) expected[i];
             Object[] actualList = (Object[]) actual[i];
 
-            assertEquals(expectedList.length, actualList.length);
+            assertThat(actualList.length).isEqualTo(expectedList.length);
 
             for (int j = 0; j < expectedList.length; j++) {
-                assertEquals(expectedList[j], bytesToAscii((byte[]) actualList[j]));
+                assertThat(bytesToAscii((byte[]) actualList[j])).isEqualTo(expectedList[j]);
             }
         }
     }
@@ -934,7 +931,7 @@ public class RLPSpecTest {
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(bytesToAscii(actual)).isEqualTo(expected);
-        assertEquals(0, byteArrayToInt(actual));
+        assertThat(byteArrayToInt(actual)).isEqualTo(0);
     }
 
     @Test
@@ -944,7 +941,7 @@ public class RLPSpecTest {
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(bytesToAscii(actual)).isEqualTo(expected);
-        assertEquals(1, byteArrayToInt(actual));
+        assertThat(byteArrayToInt(actual)).isEqualTo(1);
     }
 
     @Test
@@ -954,6 +951,6 @@ public class RLPSpecTest {
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
         assertThat(bytesToAscii(actual)).isEqualTo(expected);
-        assertEquals(127, byteArrayToInt(actual));
+        assertThat(byteArrayToInt(actual)).isEqualTo(127);
     }
 }
