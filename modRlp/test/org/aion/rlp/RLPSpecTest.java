@@ -467,21 +467,21 @@ public class RLPSpecTest {
         String expected = "dog";
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
     }
 
     @Test
     public void testDecodeShortString2() {
-        // TODO
-        //        byte[] input =
-        //                Hex.decode(
-        //
-        // "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69");
-        //        String expected = "Lorem ipsum dolor sit amet, consectetur adipisicing eli"; //
-        // length = 55
-        //
-        //        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        //        assertEquals(expected, bytesToAscii(actual));
+        byte[] input =
+                Hex.decode(
+                        "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69");
+        String expected = "Lorem ipsum dolor sit amet, consectetur adipisicing eli"; // length = 55
+
+        byte[] actual1 = (byte[]) EthRLP.decode(input, 0).getDecoded();
+        assertThat(bytesToAscii(actual1)).isEqualTo(expected);
+
+        byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
     }
 
     @Test
@@ -492,7 +492,7 @@ public class RLPSpecTest {
         String expected = "Lorem ipsum dolor sit amet, consectetur adipisicing elit"; // length = 56
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
     }
 
     @Test
@@ -504,7 +504,7 @@ public class RLPSpecTest {
                 "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur mauris magna, suscipit sed vehicula non, iaculis faucibus tortor. Proin suscipit ultricies malesuada. Duis tortor elit, dictum quis tristique eu, ultrices at risus. Morbi a est imperdiet mi ullamcorper aliquet suscipit nec lorem. Aenean quis leo mollis, vulputate elit varius, consequat enim. Nulla ultrices turpis justo, et posuere urna consectetur nec. Proin non convallis metus. Donec tempor ipsum in mauris congue sollicitudin. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Suspendisse convallis sem vel massa faucibus, eget lacinia lacus tempor. Nulla quis ultricies purus. Proin auctor rhoncus nibh condimentum mollis. Aliquam consequat enim at metus luctus, a eleifend purus egestas. Curabitur at nibh metus. Nam bibendum, neque at auctor tristique, lorem libero aliquet arcu, non interdum tellus lectus sit amet eros. Cras rhoncus, metus ac ornare cursus, dolor justo ultrices metus, at ullamcorper volutpat";
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
     }
 
     /**
@@ -928,7 +928,7 @@ public class RLPSpecTest {
         String expected = "\u0000";
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
         assertEquals(0, byteArrayToInt(actual));
     }
 
@@ -938,7 +938,7 @@ public class RLPSpecTest {
         String expected = "\u0001";
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
         assertEquals(1, byteArrayToInt(actual));
     }
 
@@ -948,7 +948,7 @@ public class RLPSpecTest {
         String expected = "\u007F";
 
         byte[] actual = (byte[]) RLP.decode(input, 0).getDecoded();
-        assertEquals(expected, bytesToAscii(actual));
+        assertThat(bytesToAscii(actual)).isEqualTo(expected);
         assertEquals(127, byteArrayToInt(actual));
     }
 }

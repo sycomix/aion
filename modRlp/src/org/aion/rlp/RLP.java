@@ -653,7 +653,7 @@ public class RLP {
                                                                         // own
                                                                         // RLP
                                                                         // encoding
-        } else if (prefix < OFFSET_LONG_ITEM) {
+        } else if (prefix <= OFFSET_LONG_ITEM) {
             int len = prefix - OFFSET_SHORT_ITEM; // length of the encoded bytes
             return new DecodeResult(pos + 1 + len, copyOfRange(data, pos + 1, pos + 1 + len));
         } else if (prefix < OFFSET_SHORT_LIST) {
