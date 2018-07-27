@@ -208,6 +208,11 @@ public class TokenBridgeContract extends StatefulPrecompiledContract implements 
 
     private ExecutionContext assembleContext(@Nonnull final byte[] recipient,
                                              @Nonnull final BigInteger value) {
+
+        /**
+         * Issue #7: the txHash should be the hash of AionInternalTx; Let's discuss about this once
+         * we decide to roll out the upcoming fastvm changes.
+         */
         return new ExecutionContext(
                 this.context.transactionHash(),
                 new Address(recipient),
@@ -274,6 +279,11 @@ public class TokenBridgeContract extends StatefulPrecompiledContract implements 
      */
     @SuppressWarnings("JavadocReference")
     private AionInternalTx newInternalTx(ExecutionContext context) {
+
+        /**
+         * Issue #8: we're adding new definition to parentHash, depth and index; Let's discuss about this once
+         * we decide to roll out the upcoming fastvm changes.
+         */
 
         byte[] parentHash = context.transactionHash();
         int deep = context.depth();
