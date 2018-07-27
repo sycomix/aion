@@ -144,6 +144,9 @@ public class BridgeDeserializer {
         final int callLength = call.length;
 
         // check minimum length
+        /**
+         * Issue #1: Suggest changing to `offset + LIST_META + LIST_PT`
+         */
         if (callLength < CALL_OFFSET + LIST_META + LIST_PT)
             return null;
 
@@ -163,6 +166,9 @@ public class BridgeDeserializer {
         if (listLength * elementLength > (call.length - listOffset - LIST_PT))
             return null;
 
+        /**
+         * Issue #2: potential OOM by constructing a large `listLength` that overflows the `listLength * elementLength`
+         */
         final byte[][] output = new byte[listLength][];
 
         // yuck
@@ -179,6 +185,13 @@ public class BridgeDeserializer {
 
     private static int parseMeta(@Nonnull final byte[] call,
                                  final int offset) {
+        /**
+         * Issue #3: Need to check the offset first
+         */
+        if (offset + LIST_PT > call.length) {
+            return ERR_INT;
+        }
+
         // more minimum length checks
         final byte[] pt = new byte[LIST_PT];
         System.arraycopy(call, offset, pt, 0, LIST_PT);
