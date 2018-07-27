@@ -15,6 +15,9 @@ import java.math.BigInteger;
 public class BridgeUtilities {
     public static final byte[] EMPTY = new byte[0];
 
+    /**
+     * Issue #5: is this Ethereum/Aion address? I assume it's Aion address but it takes 20 bytes.
+     */
     static byte[] getAddress(@Nullable byte[] addr) {
         if (addr == null)
             return null;
@@ -46,6 +49,10 @@ public class BridgeUtilities {
         System.arraycopy(input, 0, sig, 0, 4);
         return sig;
     }
+
+    /**
+     * Issue #6: I was a bit confused by `HALF_WORD`, `WORD`, `DWORD`
+     */
 
     static byte[] orDefaultWord(@Nullable final byte[] input) {
         return input == null ? ByteUtil.EMPTY_HALFWORD : input;

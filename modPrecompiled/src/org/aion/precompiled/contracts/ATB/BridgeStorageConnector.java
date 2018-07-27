@@ -186,6 +186,10 @@ public class BridgeStorageConnector {
         return (activeMemberWord[15] & 0x01) == 1;
     }
 
+    /**
+     * Issue #4: Did we forget to set bundle? This method is only used in tests.
+     */
+
     public void setBundle(@Nonnull final byte[] key,
                           final boolean value) {
         assert key.length == 32;
