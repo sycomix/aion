@@ -35,11 +35,16 @@
 package org.aion.types;
 
 import org.aion.base.type.Address;
+import org.aion.base.util.ByteArrayWrapper;
+import org.aion.base.util.ByteUtil;
 import org.aion.crypto.ECKeyFac;
+import org.aion.crypto.HashUtil;
 import org.aion.mcf.vm.types.DataWord;
 import org.aion.zero.types.AionTransaction;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.Test;
+
+import java.math.BigInteger;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -133,5 +138,21 @@ public class AionTransactionTest {
             expected += (b == 0) ? 4 : 64;
         }
         assertEquals(expected, tx.transactionCost(1));
+    }
+
+    @Test
+    public void encodingTest() {
+        byte[] nonce = BigInteger.ONE.toByteArray();
+        Address to = new Address(HashUtil.h256("address".getBytes()));
+        System.out.println(to);
+        byte[] value = BigInteger.ONE.toByteArray();
+        byte[] data = HashUtil.h256("data".getBytes());
+        System.out.println(ByteUtil.toHexString(data));
+        long nrg = 1_000_000L;
+        long nrgPrice = 10_000_000_000L;
+
+        AionTransaction tx = new AionTransaction(nonce, to, value, data, nrg, nrgPrice);
+        System.out.println(tx.getTimeStampBI().longValueExact());
+        System.out.println(ByteUtil.toHexString(tx.getEncodedRaw()));
     }
 }
