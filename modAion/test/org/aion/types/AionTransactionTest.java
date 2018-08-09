@@ -139,20 +139,4 @@ public class AionTransactionTest {
         }
         assertEquals(expected, tx.transactionCost(1));
     }
-
-    @Test
-    public void encodingTest() {
-        byte[] nonce = BigInteger.ONE.toByteArray();
-        Address to = new Address(HashUtil.h256("address".getBytes()));
-        System.out.println(to);
-        byte[] value = BigInteger.ONE.toByteArray();
-        byte[] data = HashUtil.h256("data".getBytes());
-        System.out.println(ByteUtil.toHexString(data));
-        long nrg = 1_000_000L;
-        long nrgPrice = 10_000_000_000L;
-
-        AionTransaction tx = new AionTransaction(nonce, to, value, data, nrg, nrgPrice);
-        System.out.println(tx.getTimeStampBI().longValueExact());
-        System.out.println(ByteUtil.toHexString(tx.getEncodedRaw()));
-    }
 }
