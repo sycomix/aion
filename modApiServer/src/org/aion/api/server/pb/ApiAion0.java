@@ -49,8 +49,10 @@ import java.util.stream.LongStream;
 import org.aion.api.server.ApiAion;
 import org.aion.api.server.ApiUtil;
 import org.aion.api.server.IApiAion;
+import org.aion.api.server.pb.Message.Funcs;
 import org.aion.api.server.pb.Message.Retcode;
 import org.aion.api.server.pb.Message.Servs;
+import org.aion.api.server.pb.Message.t_AionTxExt;
 import org.aion.api.server.types.ArgTxCall;
 import org.aion.api.server.types.CompiledContr;
 import org.aion.api.server.types.EvtContract;
@@ -105,6 +107,62 @@ public class ApiAion0 extends ApiAion implements IApiAion {
     private BlockingQueue<TxPendingStatus> pendingStatus;
     private BlockingQueue<TxWaitingMappingUpdate> txWait;
     private Map<ByteArrayWrapper, Map.Entry<ByteArrayWrapper, ByteArrayWrapper>> msgIdMapping;
+    private boolean isFilterEnabled;
+    private Map<ByteArrayWrapper, AionBlockSummary> explorerBlockCache;
+    private boolean isBlkCacheEnabled;
+    private EventExecuteService eesBlkCache;
+
+    @SuppressWarnings("rawtypes")
+    public ApiAion0(IAionChain ac) {
+        super(ac);
+        this.pendingReceipts = Collections.synchronizedMap(new LRUMap<>(10000, 100));
+
+        int MAP_SIZE = 50_000;
+        this.pendingStatus = new LinkedBlockingQueue(MAP_SIZE);
+        this.txWait = new LinkedBlockingQueue(MAP_SIZE);
+        this.msgIdMapping = Collections.synchronizedMap(new LRUMap<>(MAP_SIZE, 100));
+
+        initNrgOracle(ac);
+
+        isFilterEnabled = CfgAion.inst().getApi().getZmq().isFiltersEnabled();
+
+        isBlkCacheEnabled = CfgAion.inst().getApi().getZmq().isBlockSummaryCacheEnabled();
+
+        if (isBlkCacheEnabled) {
+            explorerBlockCache =
+                Collections.synchronizedMap(new LRUMap<>(20)); // use the default loadfactor
+            eesBlkCache =
+                new EventExecuteService(
+                    100_000, "explorer-blk-cache", Thread.MIN_PRIORITY, LOG);
+            Set<Integer> eventSN = new HashSet<>();
+            int sn = IHandler.TYPE.BLOCK0.getValue() << 8;
+            eventSN.add(sn + EventBlock.CALLBACK.ONBLOCK0.getValue());
+            eesBlkCache.setFilter(eventSN);
+            eesBlkCache.start(new EpBlkCache());
+
+            IHandler hdrBlk =
+                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.BLOCK0.getValue());
+            if (hdrBlk != null) {
+                hdrBlk.eventCallback(new EventCallback(eesBlkCache, LOG));
+            }
+        }
+
+        if (isFilterEnabled) {
+            startES("EpApi");
+
+            IHandler hdrTx =
+                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.TX0.getValue());
+            if (hdrTx != null) {
+                hdrTx.eventCallback(new EventCallback(ees, LOG));
+            }
+
+            IHandler hdrBlk =
+                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.BLOCK0.getValue());
+            if (hdrBlk != null) {
+                hdrBlk.eventCallback(new EventCallback(ees, LOG));
+            }
+        }
+    }
 
     public static boolean heartBeatMsg(byte[] msg) {
         if (msg == null || msg.length != JAVAAPI_REQHEADER_LEN) {
@@ -270,91 +328,9 @@ public class ApiAion0 extends ApiAion implements IApiAion {
         }
     }
 
-    private boolean isFilterEnabled;
-
-    private Map<ByteArrayWrapper, AionBlockSummary> explorerBlockCache;
-
     private void cacheBlock(AionBlockSummary cbs) {
         // put the block summary in the cache
         explorerBlockCache.put(new ByteArrayWrapper(cbs.getBlock().getHash()), cbs);
-    }
-
-    private boolean isBlkCacheEnabled;
-
-    private EventExecuteService eesBlkCache;
-
-    private final class EpBlkCache implements Runnable {
-
-        boolean go = true;
-
-        @Override
-        public void run() {
-            while (go) {
-                try {
-                    IEvent e = eesBlkCache.take();
-                    if (e.getEventType() == IHandler.TYPE.BLOCK0.getValue()
-                        && e.getCallbackType() == EventBlock.CALLBACK.ONBLOCK0.getValue()) {
-                        cacheBlock((AionBlockSummary) e.getFuncArgs().get(0));
-                    } else if (e.getEventType() == IHandler.TYPE.POISONPILL.getValue()) {
-                        go = false;
-                    }
-                } catch (Exception e) {
-                    LOG.debug("EpBlkCache - excepted out", e);
-                }
-            }
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    public ApiAion0(IAionChain ac) {
-        super(ac);
-        this.pendingReceipts = Collections.synchronizedMap(new LRUMap<>(10000, 100));
-
-        int MAP_SIZE = 50_000;
-        this.pendingStatus = new LinkedBlockingQueue(MAP_SIZE);
-        this.txWait = new LinkedBlockingQueue(MAP_SIZE);
-        this.msgIdMapping = Collections.synchronizedMap(new LRUMap<>(MAP_SIZE, 100));
-
-        initNrgOracle(ac);
-
-        isFilterEnabled = CfgAion.inst().getApi().getZmq().isFiltersEnabled();
-
-        isBlkCacheEnabled = CfgAion.inst().getApi().getZmq().isBlockSummaryCacheEnabled();
-
-        if (isBlkCacheEnabled) {
-            explorerBlockCache =
-                Collections.synchronizedMap(new LRUMap<>(20)); // use the default loadfactor
-            eesBlkCache =
-                new EventExecuteService(
-                    100_000, "explorer-blk-cache", Thread.MIN_PRIORITY, LOG);
-            Set<Integer> eventSN = new HashSet<>();
-            int sn = IHandler.TYPE.BLOCK0.getValue() << 8;
-            eventSN.add(sn + EventBlock.CALLBACK.ONBLOCK0.getValue());
-            eesBlkCache.setFilter(eventSN);
-            eesBlkCache.start(new EpBlkCache());
-
-            IHandler hdrBlk =
-                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.BLOCK0.getValue());
-            if (hdrBlk != null) {
-                hdrBlk.eventCallback(new EventCallback(eesBlkCache, LOG));
-            }
-        }
-
-        if (isFilterEnabled) {
-            startES("EpApi");
-
-            IHandler hdrTx =
-                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.TX0.getValue());
-            if (hdrTx != null) {
-                hdrTx.eventCallback(new EventCallback(ees, LOG));
-            }
-
-            IHandler hdrBlk =
-                this.ac.getAionHub().getEventMgr().getHandler(IHandler.TYPE.BLOCK0.getValue());
-            if (hdrBlk != null) {
-                hdrBlk.eventCallback(new EventCallback(ees, LOG));
-            }
-        }
     }
 
     public byte[] process(byte[] request, byte[] socketId) {
@@ -2426,6 +2402,37 @@ public class ApiAion0 extends ApiAion implements IApiAion {
                         getApiVersion(), Retcode.r_fail_function_exception_VALUE);
                 }
             }
+            case Funcs.f_getPendingTx_VALUE: {
+                if (service != Servs.s_tx_VALUE) {
+                    return ApiUtil.toReturnHeader(
+                        getApiVersion(), Retcode.r_fail_service_call_VALUE);
+                }
+
+                List<AionTransaction> txs = ac.getPendingStateTransactions();
+                List<Message.t_AionTxExt> txExts = new ArrayList<>();
+                for (AionTransaction tx : txs) {
+                    txExts.add(txTransfer(tx));
+                }
+
+                try {
+                    Message.rsp_getPendingTx rsp =
+                        Message.rsp_getPendingTx
+                            .newBuilder()
+                            .addAllPendingTxs(txExts)
+                            .build();
+
+                    byte[] retHeader =
+                        ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_success_VALUE);
+                    return ApiUtil.combineRetMsg(retHeader, rsp.toByteArray());
+
+                } catch (Exception e) {
+                    LOG.error(
+                        "ApiAion0.process.getBlockDetailsByNumber exception: [{}]",
+                        e.getMessage());
+                    return ApiUtil.toReturnHeader(
+                        getApiVersion(), Retcode.r_fail_function_exception_VALUE);
+                }
+            }
 
             // case Message.Funcs.f_eventQuery_VALUE:
             // case Message.Funcs.f_submitWork_VALUE:
@@ -2433,6 +2440,20 @@ public class ApiAion0 extends ApiAion implements IApiAion {
             default:
                 return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_function_call_VALUE);
         }
+    }
+
+    private t_AionTxExt txTransfer(AionTransaction tx) {
+        return t_AionTxExt
+            .newBuilder()
+            .setTxHash(ByteString.copyFrom(tx.getHash()))
+            .setData(ByteString.copyFrom(tx.getData()))
+            .setFrom(ByteString.copyFrom(tx.getFrom().toBytes()))
+            .setNonce(ByteString.copyFrom(tx.getNonce()))
+            .setNrg(tx.getNrg())
+            .setNrgConsumed(tx.getNrgConsume())
+            .setTo(ByteString.copyFrom(tx.getTo().toBytes()))
+            .setValue(ByteString.copyFrom(tx.getValue()))
+            .build();
     }
 
     @Override
@@ -3012,5 +3033,27 @@ public class ApiAion0 extends ApiAion implements IApiAion {
         return ByteBuffer.allocate(request.length - headerLen)
             .put(request, headerLen, request.length - headerLen)
             .array();
+    }
+
+    private final class EpBlkCache implements Runnable {
+
+        boolean go = true;
+
+        @Override
+        public void run() {
+            while (go) {
+                try {
+                    IEvent e = eesBlkCache.take();
+                    if (e.getEventType() == IHandler.TYPE.BLOCK0.getValue()
+                        && e.getCallbackType() == EventBlock.CALLBACK.ONBLOCK0.getValue()) {
+                        cacheBlock((AionBlockSummary) e.getFuncArgs().get(0));
+                    } else if (e.getEventType() == IHandler.TYPE.POISONPILL.getValue()) {
+                        go = false;
+                    }
+                } catch (Exception e) {
+                    LOG.debug("EpBlkCache - excepted out", e);
+                }
+            }
+        }
     }
 }
