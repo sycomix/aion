@@ -74,9 +74,7 @@ public class FileDateTimeComparator implements Comparator<File> {
 
         if (frag1.length != 3)
             return -1;
-
-        // TODO: make sure this is the same as the pattern we use to encode
-
+        
         // check time zone
         if (!frag0[0].equals("UTC") && !frag1[0].equals("UTC"))
             return 0;
