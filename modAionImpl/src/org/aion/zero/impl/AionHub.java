@@ -101,6 +101,11 @@ public class AionHub {
 
     private AtomicBoolean start = new AtomicBoolean(true);
 
+    /** Test functionality for checking if the hub has been shut down. */
+    public boolean isRunning() {
+        return start.get();
+    }
+
     /**
      * A "cached" block that represents our local best block when the application is first booted.
      */
@@ -111,7 +116,6 @@ public class AionHub {
      * holder pattern
      */
     private static class Holder {
-
         static final AionHub INSTANCE = new AionHub();
     }
 
@@ -151,14 +155,6 @@ public class AionHub {
             genLOG.info("Seed node mode enabled!");
         }
 
-        String reportsFolder = "";
-        if (cfg.getReports().isEnabled()) {
-            File rpf = new File(cfg.getBasePath(), cfg.getReports().getPath());
-            //noinspection ResultOfMethodCallIgnored
-            rpf.mkdirs();
-            reportsFolder = rpf.getAbsolutePath();
-        }
-
         /*
          * p2p hook up start sync mgr needs to be initialed after loadBlockchain()
          * method
@@ -175,7 +171,7 @@ public class AionHub {
 
         this.syncMgr = SyncMgr.inst();
         this.syncMgr.init(this.p2pMgr, this.eventMgr, this.cfg.getSync().getBlocksQueueMax(),
-            this.cfg.getSync().getShowStatus(), this.cfg.getReports().isEnabled(), reportsFolder);
+            this.cfg.getSync().getShowStatus(), this.cfg.getReports().isEnabled(), "");
 
         ChainConfiguration chainConfig = new ChainConfiguration();
         this.propHandler = new BlockPropagationHandler(1024, this.blockchain, this.p2pMgr,
@@ -188,34 +184,22 @@ public class AionHub {
 
         this.pow = new AionPoW();
         this.pow.init(blockchain, mempool, eventMgr);
-
-        if (cfg.getReports().isHeapDumpEnabled()) {
-            new Thread(
-                new TaskDumpHeap(this.start, cfg.getReports().getHeapDumpInterval(), reportsFolder),
-                "dump-heap")
-                .start();
-        }
     }
 
     private void registerCallback() {
         List<Handler> cbs = new ArrayList<>();
-        cbs.add(new ReqStatusHandler(syncLOG, this.blockchain, this.p2pMgr,
-            cfg.getGenesis().getHash()));
-        cbs.add(new ResStatusHandler(syncLOG, this.p2pMgr, this.syncMgr));
-        cbs.add(new ReqBlocksHeadersHandler(
-            syncLOG, this.blockchain, this.p2pMgr, this.cfg.getNet().getP2p().inSyncOnlyMode()));
-        cbs.add(new ResBlocksHeadersHandler(syncLOG, this.syncMgr, this.p2pMgr));
-        cbs.add(new ReqBlocksBodiesHandler(
-            syncLOG, this.blockchain, this.p2pMgr, this.cfg.getNet().getP2p().inSyncOnlyMode()));
-        cbs.add(new ResBlocksBodiesHandler(syncLOG, this.syncMgr, this.p2pMgr));
-        cbs.add(new BroadcastTxHandler(
-            syncLOG, this.mempool, this.p2pMgr, this.cfg.getNet().getP2p().inSyncOnlyMode()));
-        cbs.add(new BroadcastNewBlockHandler(syncLOG, this.propHandler, this.p2pMgr));
+        cbs.add(new ReqStatusHandler(syncLOG, blockchain, p2pMgr, cfg.getGenesis().getHash()));
+        cbs.add(new ResStatusHandler(syncLOG, p2pMgr, syncMgr));
+        boolean inSyncOnlyMode = cfg.getNet().getP2p().inSyncOnlyMode();
+        cbs.add(new ReqBlocksHeadersHandler(syncLOG, blockchain, p2pMgr, inSyncOnlyMode));
+        cbs.add(new ResBlocksHeadersHandler(syncLOG, syncMgr, p2pMgr));
+        cbs.add(new ReqBlocksBodiesHandler(syncLOG, blockchain, p2pMgr, inSyncOnlyMode));
+        cbs.add(new ResBlocksBodiesHandler(syncLOG, syncMgr, p2pMgr));
+        cbs.add(new BroadcastTxHandler(syncLOG, mempool, p2pMgr, inSyncOnlyMode));
+        cbs.add(new BroadcastNewBlockHandler(syncLOG, propHandler, p2pMgr));
         this.p2pMgr.register(cbs);
     }
 
-    /**
-     */
     private void loadEventMgr() {
 
         try {
@@ -500,5 +484,4 @@ public class AionHub {
     public AionBlock getStartingBlock() {
         return this.startingBlock;
     }
-
 }
