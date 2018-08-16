@@ -180,7 +180,7 @@ public class ConfigManipulator {
     }
 
     public File configFile() {
-        return new File(cfg.getBasePath() + "/config/config.xml");
+        return new File(CfgAion.getConfFilePath());
     }
 
     private File backupConfigFile() {
