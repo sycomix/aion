@@ -419,7 +419,7 @@ public class TokenBridgeContractTest {
             assertThat(processedBundleLog.getData()).isEmpty();
             assertThat(processedBundleLog.getAddress()).isEqualTo(CONTRACT_ADDR);
             assertThat(processedBundleLog.getTopics().size()).isEqualTo(2);
-            assertThat(processedBundleLog.getTopics().get(0)).isEqualTo(BridgeEventSig.SUCCESSFUL_TXHASH.getHashed());git 
+            assertThat(processedBundleLog.getTopics().get(0)).isEqualTo(BridgeEventSig.SUCCESSFUL_TXHASH.getHashed());
             assertThat(processedBundleLog.getTopics().get(1)).isEqualTo(HashUtil.h256("transaction".getBytes()));
         }
     }
