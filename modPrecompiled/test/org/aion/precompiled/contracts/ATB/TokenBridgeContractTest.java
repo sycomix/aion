@@ -312,6 +312,119 @@ public class TokenBridgeContractTest {
     }
 
     @Test
+    public void testTransferResubmit() {
+        /// Important Test! Bridge is expecting an event in this case and will react on it
+
+        // override defaults
+        ExecutionContext initializationContext = context(OWNER_ADDR, CONTRACT_ADDR, ByteUtil.EMPTY_BYTE_ARRAY);
+        this.contract = new TokenBridgeContract(initializationContext, this.repository, OWNER_ADDR, CONTRACT_ADDR);
+        this.controller = this.contract.getController();
+        this.connector = this.contract.getConnector();
+
+        ListFVM encodingList = new ListFVM();
+        for (ECKey k : members) {
+            encodingList.add(new AddressFVM(new ByteArrayWrapper(k.getAddress())));
+        }
+        byte[] payload = new AbiEncoder(BridgeFuncSig.SIG_RING_INITIALIZE.getSignature(), encodingList).encodeBytes();
+        ExecutionResult result = this.contract.execute(payload, DEFAULT_NRG);
+        assertThat(result.getResultCode()).isEqualTo(AbstractExecutionResult.ResultCode.SUCCESS);
+
+        //set relayer
+        byte[] callPayload = new AbiEncoder(BridgeFuncSig.SIG_SET_RELAYER.getSignature(),
+                new AddressFVM(new ByteArrayWrapper(members[0].getAddress()))).encodeBytes();
+
+        ExecutionResult transferResult = this.contract.execute(callPayload, DEFAULT_NRG);
+        assertThat(transferResult.getResultCode()).isEqualTo(AbstractExecutionResult.ResultCode.SUCCESS);
+
+        // override defaults
+        this.repository.addBalance(CONTRACT_ADDR, BigInteger.TEN);
+
+        // we create a new token bridge contract here because we
+        // need to change the execution context
+        ExecutionContext submitBundleContext = context(new Address(members[0].getAddress()),
+                CONTRACT_ADDR, ByteUtil.EMPTY_BYTE_ARRAY);
+        this.contract = new TokenBridgeContract(submitBundleContext, this.repository, OWNER_ADDR, CONTRACT_ADDR);
+        this.controller = this.contract.getController();
+        this.connector = this.contract.getConnector();
+
+        // assemble the payload
+        byte[] blockHash = HashUtil.h256("blockHash".getBytes());
+
+        BridgeTransfer[] transfers = new BridgeTransfer[10];
+        for (int i = 0; i < 10; i++) {
+
+            // generate a unique sourceTransactionHash for each transfer
+            byte[] sourceTransactionHash = HashUtil.h256(Integer.toString(i).getBytes());
+            transfers[i] = BridgeTransfer.getInstance(BigInteger.ONE,
+                    AddressSpecs.computeA0Address(HashUtil.h256(Integer.toHexString(i).getBytes())),
+                    sourceTransactionHash);
+        }
+        byte[] payloadHash = BridgeUtilities.computeBundleHash(blockHash, transfers);
+
+        // ATB-4, do one assert here to check that transactionHash is not set
+        assertThat(this.contract.execute(
+                ByteUtil.merge(BridgeFuncSig.PURE_ACTION_MAP.getBytes(),
+                        payloadHash), 21000L).getOutput())
+                .isEqualTo(ByteUtil.EMPTY_WORD);
+
+        byte[][] signatures = new byte[members.length][];
+        int i = 0;
+        for (ECKey k : members) {
+            signatures[i] = k.sign(payloadHash).toBytes();
+            i++;
+        }
+
+        ListFVM sourceTransactionList = new ListFVM();
+        ListFVM addressList = new ListFVM();
+        ListFVM uintList = new ListFVM();
+        for (BridgeTransfer b : transfers) {
+            sourceTransactionList.add(new AddressFVM(new ByteArrayWrapper(b.getSourceTransactionHash())));
+            addressList.add(new AddressFVM(new ByteArrayWrapper(b.getRecipient())));
+            uintList.add(new Uint128FVM(new ByteArrayWrapper(PrecompiledUtilities.pad(b.getTransferValue().toByteArray(), 16))));
+        }
+
+        ListFVM sigChunk1 = new ListFVM();
+        ListFVM sigChunk2 = new ListFVM();
+        ListFVM sigChunk3 = new ListFVM();
+        for (byte[] sig : signatures) {
+            sigChunk1.add(new AddressFVM(new ByteArrayWrapper(Arrays.copyOfRange(sig, 0, 32))));
+            sigChunk2.add(new AddressFVM(new ByteArrayWrapper(Arrays.copyOfRange(sig, 32, 64))));
+            sigChunk3.add(new AddressFVM(new ByteArrayWrapper(Arrays.copyOfRange(sig, 64, 96))));
+        }
+
+        callPayload = new AbiEncoder(BridgeFuncSig.SIG_SUBMIT_BUNDLE.getSignature(),
+                new AddressFVM(new ByteArrayWrapper(blockHash)),
+                sourceTransactionList,
+                addressList,
+                uintList,
+                sigChunk1,
+                sigChunk2,
+                sigChunk3).encodeBytes();
+        transferResult = this.contract.execute(callPayload, DEFAULT_NRG);
+
+        assertThat(transferResult.getResultCode()).isEqualTo(AbstractExecutionResult.ResultCode.SUCCESS);
+        // now try to transfer the same bundle again, it should result in a event being emit
+        {
+            ExecutionContext resubmitBundleContext = context(new Address(members[0].getAddress()),
+                    CONTRACT_ADDR, ByteUtil.EMPTY_BYTE_ARRAY);
+            this.contract = new TokenBridgeContract(resubmitBundleContext, this.repository, OWNER_ADDR, CONTRACT_ADDR);
+            this.controller = this.contract.getController();
+            this.connector = this.contract.getConnector();
+            // now try to resubmit
+            transferResult = this.contract.execute(callPayload, DEFAULT_NRG);
+            assertThat(transferResult.getResultCode()).isEqualTo(AbstractExecutionResult.ResultCode.SUCCESS);
+            assertThat(resubmitBundleContext.helper().getLogs().size()).isEqualTo(1);
+
+            Log processedBundleLog = resubmitBundleContext.helper().getLogs().get(0);
+            assertThat(processedBundleLog.getData()).isEmpty();
+            assertThat(processedBundleLog.getAddress()).isEqualTo(CONTRACT_ADDR);
+            assertThat(processedBundleLog.getTopics().size()).isEqualTo(2);
+            assertThat(processedBundleLog.getTopics().get(0)).isEqualTo(BridgeEventSig.SUCCESSFUL_TXHASH.getHashed());git 
+            assertThat(processedBundleLog.getTopics().get(1)).isEqualTo(HashUtil.h256("transaction".getBytes()));
+        }
+    }
+
+    @Test
     public void testTransferNotRelayer() {
         // override defaults
         ExecutionContext initializationContext = context(OWNER_ADDR, CONTRACT_ADDR, ByteUtil.EMPTY_BYTE_ARRAY);
