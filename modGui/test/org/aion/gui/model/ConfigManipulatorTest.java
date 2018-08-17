@@ -41,7 +41,7 @@ public class ConfigManipulatorTest {
     @Test
     public void testGetLastLoadedContent() throws Exception {
         String configFileContents = "<fake><config><stuff>";
-        when(fileLoaderSaver.load(new File(cfg.getBasePath() + "/config/config.xml")))
+        when(fileLoaderSaver.load(new File(cfg.getBasePath() + "/config/mainnet/config.xml")))
                 .thenReturn(configFileContents);
         ConfigManipulator unit = new ConfigManipulator(cfg, kernelLauncher, fileLoaderSaver, jmxCaller);
         assertThat(unit.loadFromConfigFile(), is(configFileContents));
@@ -50,7 +50,7 @@ public class ConfigManipulatorTest {
 
     @Test
     public void testLoadFromConfigFileWhenError() throws Exception {
-        when(fileLoaderSaver.load(new File(cfg.getBasePath() + "/config/config.xml")))
+        when(fileLoaderSaver.load(new File(cfg.getBasePath() + "/config/mainnet/config.xml")))
                 .thenThrow(new IOException());
         ConfigManipulator unit = new ConfigManipulator(cfg, kernelLauncher, fileLoaderSaver, jmxCaller);
         assertThat(unit.loadFromConfigFile(), is("<Could not load config file>"));
@@ -82,7 +82,7 @@ public class ConfigManipulatorTest {
         when(jmxCaller.sendConfigProposal(xml)).thenReturn(configProposalResult);
         doThrow(new IOException()).when(fileLoaderSaver).save(
                 any(),
-                eq(new File(cfg.getBasePath() + "/config/config.backup.xml"))
+                eq(new File(cfg.getBasePath() + "/config/mainnet/config.backup.xml"))
         );
 
         ConfigManipulator unit = new ConfigManipulator(cfg, kernelLauncher, fileLoaderSaver, jmxCaller);
@@ -100,7 +100,7 @@ public class ConfigManipulatorTest {
         when(jmxCaller.sendConfigProposal(xml)).thenReturn(configProposalResult);
         doThrow(new IOException()).when(fileLoaderSaver).save(
                 any(),
-                eq(new File(cfg.getBasePath() + "/config/config.xml"))
+                eq(new File(cfg.getBasePath() + "/config/mainnet/config.xml"))
         );
 
         ConfigManipulator unit = new ConfigManipulator(cfg, kernelLauncher, fileLoaderSaver, jmxCaller);

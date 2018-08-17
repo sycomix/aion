@@ -33,13 +33,8 @@ import java.util.Optional;
  * to reconfigure it dynamically.
  */
 public class ConfigManipulator {
-    // Current method of determining file path of config.xml is a little wonky.  cfg is the
-    // instance of Cfg that the GUI is currently running.
-    //
-    // Problem #1: We ask it for the base dir and then blindly append a fixed string to it.
-    // Problem #2: When Aion kernel runs that will instantiate a different Cfg.  We know at the moment
-    //             from the impl that the part of the Cfg we care about -- base dir -- doesn't change.
-    //             Does not seem very reliable.
+    // Current method of determining file path of config.xml is a little primitive.
+    // It is currently hardcoded to assume that we're always on mainnet.
 
     private final Cfg cfg;
     private final KernelLauncher kernelLauncher;
@@ -184,7 +179,7 @@ public class ConfigManipulator {
     }
 
     private File backupConfigFile() {
-        return new File(cfg.getBasePath() + "/config/config.backup.xml");
+        return new File(CfgAion.getConfFilePath().replaceFirst("config\\.xml", "config.backup.xml"));
     }
 
     // -- Inner classes ---------------------------------------------------------------------------
