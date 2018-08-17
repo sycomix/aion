@@ -41,7 +41,7 @@ public class ContractFactory implements IContractFactory {
     private static final String TOTAL_CURRENCY = "0000000000000000000000000000000000000000000000000000000000000100";
 
     private static final String TOKEN_BRIDGE = "0000000000000000000000000000000000000000000000000000000000000200";
-    private static final String TOKEN_BRIDGE_INITIAL_OWNER = "a008d7b29e8d1f4bfab428adce89dc219c4714b2c6bf3fd1131b688f9ad804aa";
+    private static final String TOKEN_BRIDGE_INITIAL_OWNER = "a05fe3d94f0769d271af182a8c365d640136b5a28908c508f88e9304b60109f0";
 
     public ContractFactory(){}
 
@@ -95,4 +95,7 @@ public class ContractFactory implements IContractFactory {
         return Address.wrap(TOTAL_CURRENCY);
     }
 
+    public static Address getATBContractAddress() {
+        return Address.wrap(TOKEN_BRIDGE);
+    }
 }
