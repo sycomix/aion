@@ -76,7 +76,19 @@
         <delete file="${dir.lib}/modPrecompiled.jar"/>
     </target>
 
-    <target name="integration_test_build" depends="build">
+    <target name="check-integration-dir">
+        <condition property="integration_test_exists">
+            <available file=".${src.integration-test}" type="dir"/>
+        </condition>
+    </target>
+
+    <target name="check-test-dir">
+        <condition property="test_exists">
+            <available file="${src.test}" type="dir"/>
+        </condition>
+    </target>
+
+    <target name="integration_test_build" depends="build, check-integration-dir" if="integration_test_exists">
         <mkdir dir="${dir.integration-test}"/>
         <javac debug="on" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="${src.integration-test}" destdir="${dir.integration-test}" includes="**/*.java">
             <classpath>
@@ -86,7 +98,7 @@
         </javac>
     </target>
 
-    <target name="test_build" depends="build">
+    <target name="test_build" depends="build, check-test-dir" if="test_exists">
         <mkdir dir="${dir.test}" />
         <javac debug="on" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="${src.test}" destdir="${dir.test}" includes="**/*.java">
             <classpath>
