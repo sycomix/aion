@@ -42,12 +42,13 @@
     <delete dir="${test.report.dir}"/>
     <delete dir="${integration-test.report.dir}"/>
     <delete dir="./build"/>
+    <delete file=".ant-targets-build.xml"/>
     <delete file="${dir.mod}/modRlp.jar"/>
   </target>
 
   <target name="check-integration-dir">
     <condition property="integration_test_exists">
-      <available file=".${src.integration-test}" type="dir"/>
+      <available file="${src.integration-test}" type="dir"/>
     </condition>
   </target>
 
@@ -77,7 +78,7 @@
     </javac>
   </target>
 
-  <target name="integration_test" depends="integration_test_build">
+  <target name="integration_test" depends="integration_test_build" if="integration_test_exists">
     <mkdir dir="${integration-test.report.dir}"/>
     <junit printsummary="yes" haltonfailure="yes" fork="yes">
       <classpath>
@@ -93,7 +94,7 @@
     </junit>
   </target>
 
-  <target name="test" depends="test_build">
+  <target name="test" depends="test_build" if="test_exists">
     <mkdir dir="${test.report.dir}"/>
     <junit printsummary="yes" haltonfailure="yes" fork="yes">
       <classpath>

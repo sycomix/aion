@@ -1,68 +1,121 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <project basedir="." default="build" name="mod-p2p-implementation">
-	<property name="dir.lib" value="../lib" />
-	<property name="dir.mod" value="../mod" />
-	<property name="dir.dest" value="./build/main" />
-	<property name="dir.test" value="./build/test" />
+	<property name="dir.lib" value="../lib"/>
+	<property name="dir.mod" value="../mod"/>
+	<property name="dir.dest" value="./build/main"/>
+	<property name="dir.test" value="./build/test"/>
+	<property name="dir.integration-test" value="./build/integration_test"/>
 	<property name="src.test" value="./test" />
-	<property name="test.resources" value="./test/resources" />
-	<property name="test.report.dir" value="report" />
+	<property name="src.integration-test" value="./integration_test"/>
+	<property name="test.resources" value="./test/resources"/>
+	<property name="test.report.dir" value="report"/>
+	<property name="integration-test.report.dir" value="integration_report"/>
+
+	<path id="classpath.integration-test">
+		<pathelement location="${dir.lib}/junit_4/junit-4.12.jar"/>
+		<pathelement location="${dir.lib}/hamcrest/hamcrest-all-1.3.jar"/>
+	</path>
 
 	<path id="classpath.test">
 		<pathelement location="${dir.lib}/junit_4/junit-4.12.jar" />
-		<pathelement location="${dir.lib}/hamcrest/hamcrest-core-1.3.jar" />
-		<pathelement location="${dir.lib}/commons-collections4-4.0.jar" />
-		<pathelement location="${dir.mod}/modP2p.jar" />
-		<pathelement location="${dir.mod}/modP2pImpl.jar" />
-                <pathelement location="${dir.mod}/modLogger.jar" />
-		<pathelement location="${dir.lib}/slf4j-api-1.7.25.jar" />
-		<pathelement location="${dir.lib}/logback-classic-1.2.3.jar" />
-                <pathelement location="${dir.lib}/logback-core-1.2.3.jar" />
-                <pathelement location="${dir.lib}/byte-buddy-1.8.17.jar" />
-                <pathelement location="${dir.lib}/byte-buddy-agent-1.8.17.jar" />
-                <pathelement location="${dir.lib}/mockito-core-2.21.0.jar" />
-                <pathelement location="${dir.lib}/objenesis-2.6.jar" />
-                <pathelement location="${dir.mod}/modAionBase.jar" />		
+		<pathelement location="${dir.lib}/hamcrest/hamcrest-core-1.3.jar"/>
+		<pathelement location="${dir.lib}/commons-collections4-4.0.jar"/>
+		<pathelement location="${dir.mod}/modP2p.jar"/>
+		<pathelement location="${dir.mod}/modP2pImpl.jar"/>
+		<pathelement location="${dir.mod}/modLogger.jar"/>
+		<pathelement location="${dir.lib}/slf4j-api-1.7.25.jar"/>
+		<pathelement location="${dir.lib}/logback-classic-1.2.3.jar"/>
+		<pathelement location="${dir.lib}/logback-core-1.2.3.jar"/>
+		<pathelement location="${dir.lib}/byte-buddy-1.8.17.jar"/>
+		<pathelement location="${dir.lib}/byte-buddy-agent-1.8.17.jar"/>
+		<pathelement location="${dir.lib}/mockito-core-2.21.0.jar"/>
+		<pathelement location="${dir.lib}/objenesis-2.6.jar"/>
+		<pathelement location="${dir.mod}/modAionBase.jar"/>
 	</path>
 
-	<path id="cp">
-		<pathelement location="${dir.mod}/modP2p.jar" />
-                <pathelement location="${dir.mod}/modLogger.jar" />		
-		<pathelement location="${dir.lib}/miniupnpc_linux.jar" />
-		<pathelement location="${dir.lib}/commons-collections4-4.0.jar" />
-		<pathelement location="${dir.mod}/modAionBase.jar" />
-		<pathelement location="${dir.lib}/slf4j-api-1.7.25.jar" />
-                <pathelement location="${dir.lib}/jsr305-3.0.2.jar" />		
+	<path id="classpath.dependency">
+		<pathelement location="${dir.mod}/modP2p.jar"/>
+		<pathelement location="${dir.mod}/modLogger.jar"/>
+		<pathelement location="${dir.lib}/miniupnpc_linux.jar"/>
+		<pathelement location="${dir.lib}/commons-collections4-4.0.jar"/>
+		<pathelement location="${dir.mod}/modAionBase.jar"/>
+		<pathelement location="${dir.lib}/slf4j-api-1.7.25.jar"/>
+		<pathelement location="${dir.lib}/jsr305-3.0.2.jar"/>
 	</path>
 
 	<target name="clean_build" depends="clean">
 		<antcall target="build">
-			<param name="compile.debug" value="${compile.debug}" />
+			<param name="compile.debug" value="${compile.debug}"/>
 		</antcall>
 	</target>
 
 	<target name="clean">
-		<delete dir="${dir.dest}" includeEmptyDirs="true" includes="**/*/" />
-		<delete file="${dir.mod}/modP2pImpl.jar" />
-		<delete dir="${test.report.dir}" />
+		<delete dir="${dir.dest}" includeEmptyDirs="true" includes="**/*/"/>
+		<delete dir="${dir.test}" includeemptydirs="true" includes="**/*/"/>
+		<delete dir="./build"/>
+		<delete file="./.ant-targets-build.xml"/>
+		<delete dir="${test.report.dir}"/>
+		<delete dir="${integration-test.report.dir}"/>
+		<delete file="${dir.mod}/modP2pImpl.jar"/>
 	</target>
 
-	<target name="test_build" depends="build">
-		<mkdir dir="${dir.test}" />
-		<javac debug="on" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="./test" destdir="${dir.test}" includes="**/*Test.java">
+	<target name="check-integration-dir">
+		<condition property="integration_test_exists">
+			<available file="${src.integration-test}" type="dir"/>
+		</condition>
+	</target>
+
+	<target name="check-test-dir">
+		<condition property="test_exists">
+			<available file="${src.test}" type="dir"/>
+		</condition>
+	</target>
+
+	<target name="integration_test_build" depends="build, check-integration-dir" if="integration_test_exists">
+		<mkdir dir="${dir.integration-test}"/>
+		<javac debug="on" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="${src.integration-test}" destdir="${dir.integration-test}" includes="**/*.java">
 			<classpath>
-				<path refid="classpath.test" />
+				<path refid="classpath.integration-test"/>
+				<path refid="classpath.dependency"/>
 			</classpath>
 		</javac>
 	</target>
 
-	<target name="test" depends="test_build">
+	<target name="test_build" depends="build, check-test-dir" if="test_exists">
+		<mkdir dir="${dir.test}" />
+		<javac debug="on" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="${src.test}" destdir="${dir.test}" includes="**/*Test.java">
+			<classpath>
+				<path refid="classpath.test" />
+				<path refid="classpath.dependency"/>
+			</classpath>
+		</javac>
+	</target>
+
+	<target name="integration_test" depends="integration_test_build" if="integration_test_exists">
+		<mkdir dir="${integration-test.report.dir}" />
+		<junit printsummary="yes" haltonfailure="yes" fork="yes">
+			<classpath>
+				<path refid="classpath.integration-test"/>
+				<path refid="classpath.dependency"/>
+				<pathelement location="${dir.integration-test}"/>
+			</classpath>
+			<formatter type="plain" usefile="false"/>
+			<formatter type="xml"/>
+			<batchtest todir="${integration-test.report.dir}">
+				<fileset dir="${src.integration-test}">
+					<include name="**/*Test.java"/>
+				</fileset>
+			</batchtest>
+		</junit>
+	</target>
+
+	<target name="test" depends="test_build" if="test_exists">
 		<mkdir dir="${test.report.dir}" />
 		<junit printsummary="yes" haltonfailure="yes" fork="yes">
 			<classpath>
 				<path refid="classpath.test" />
 				<pathelement location="${dir.test}" />
-                                <pathelement location="${test.resources}" />
+				<pathelement location="${test.resources}" />
 			</classpath>
 			<formatter type="plain" usefile="false" />
 			<formatter type="xml" />
@@ -72,28 +125,13 @@
 		</junit>
 	</target>
 
-	<target name="ci_build" depends="test_build">
-		<mkdir dir="${test.report.dir}" />
-		<junit printsummary="yes" haltonfailure="no" fork="yes">
-			<classpath>
-				<path refid="classpath.test" />
-				<pathelement location="${dir.test}" />
-                                <pathelement location="${test.resources}" />
-			</classpath>
-			<formatter type="plain" usefile="false" />
-			<formatter type="xml" />
-			<batchtest todir="${test.report.dir}">
-				<fileset dir="${src.test}" includes="**/*Test.java" />
-			</batchtest>
-		</junit>
-	</target>
-
+	<target name="ci_build" depends="test_build, integration_test_build"/>
 
 	<target name="build">
 		<echo message="compiling with debug=${compile.debug}" />
 		<mkdir dir="${dir.dest}" />
 		<javac debug="${compile.debug}" debuglevel="source,lines,vars" includeantruntime="false" release="10" srcdir="./" destdir="${dir.dest}" includes="src/**/*.java,module-info.java">
-			<modulepath refid="cp" />
+			<modulepath refid="classpath.dependency" />
 		</javac>
 		<jar destfile="modP2pImpl.jar" filesetmanifest="mergewithoutmain" basedir="${dir.dest}" />
 		<move includeemptydirs="false" todir="${dir.mod}">
