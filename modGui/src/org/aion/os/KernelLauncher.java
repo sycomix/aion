@@ -4,13 +4,24 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import org.aion.gui.events.EventBusRegistry;
+import org.aion.gui.events.EventPublisher;
 import org.aion.gui.events.KernelProcEvent;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.aion.mcf.config.CfgGuiLauncher;
 import org.slf4j.Logger;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /** Facilitates launching an instance of the Kernel and managing the launched instance. */
 public class KernelLauncher {
@@ -19,11 +30,15 @@ public class KernelLauncher {
     private final EventBusRegistry eventBusRegistry;
     private final UnixProcessTerminator unixProcessTerminator;
     private final UnixKernelProcessHealthChecker healthChecker;
+    private final File storageLocation;
     private final File pidFile;
 
     private KernelInstanceId currentInstance = null;
 
     private static final Logger LOGGER = AionLoggerFactory.getLogger(LogEnum.GUI.name());
+    private static final String NOHUP_WRAPPER_STORAGE_LOCATION_ENV = "STORAGE_DIR";
+    private static final String PID_FILENAME = "kernel-pid";
+    private static final int PROCESS_ALIVE_CHECK_DELAY_SEC = 2;
 
     /**
      * Constructor.
@@ -34,15 +49,15 @@ public class KernelLauncher {
     public KernelLauncher(CfgGuiLauncher config,
                           EventBusRegistry eventBusRegistry,
                           UnixProcessTerminator terminator,
-                          UnixKernelProcessHealthChecker healthChecker) {
+                          UnixKernelProcessHealthChecker healthChecker,
+                          File storageLocation) {
         this(config,
                 new KernelLaunchConfigurator(),
                 eventBusRegistry,
                 terminator,
                 healthChecker,
-                (config.getKernelPidFile() != null ?
-                        new File(config.getKernelPidFile()) :
-                        choosePidStorageLocation())
+                storageLocation,
+                choosePidStorageLocation(storageLocation)
         );
     }
 
@@ -52,12 +67,14 @@ public class KernelLauncher {
                                       EventBusRegistry ebr,
                                       UnixProcessTerminator terminator,
                                       UnixKernelProcessHealthChecker healthChecker,
+                                      File storageLocation,
                                       File pidFile) {
         this.config = config;
         this.kernelLaunchConfigurator = klc;
         this.eventBusRegistry = ebr;
         this.unixProcessTerminator = terminator;
         this.healthChecker = healthChecker;
+        this.storageLocation = storageLocation;
         this.pidFile = pidFile;
     }
 
@@ -73,10 +90,32 @@ public class KernelLauncher {
     public Process launch() throws KernelControlException {
         ProcessBuilder processBuilder = new ProcessBuilder();
         kernelLaunchConfigurator.configure(config, processBuilder);
+        processBuilder.environment().put(NOHUP_WRAPPER_STORAGE_LOCATION_ENV,
+                storageLocation.getAbsolutePath());
 
         try {
             Process proc = processBuilder.start();
-            setAndPersistPid(waitAndCapturePid(proc));
+            long pid = waitAndCapturePid(proc);
+            Executors.newSingleThreadExecutor().submit(
+                    () -> {
+                        try {
+                            delayedHealthCheck(pid);
+                            setAndPersistPid(pid);
+                        }  catch (IOException | KernelControlException ex) {
+                            eventBusRegistry.getBus(EventBusRegistry.KERNEL_BUS)
+                                    .post(new KernelProcEvent.KernelLaunchFailedEvent());
+                            final String message;
+                            if(ex.getCause() instanceof IOException) {
+                                message = "Could not find the aion.sh script for launching the Aion Kernel.  " +
+                                        "Check your configuration; or if auto-detection is used, please manually configure.";
+                            } else {
+                                message = "Could not start kernel.";
+                            }
+                            LOGGER.error(message, ex);
+                        }
+
+                    }
+            );
             return proc;
         } catch (IOException ioe) {
             final String message;
@@ -123,6 +162,17 @@ public class KernelLauncher {
         }
     }
 
+    private void delayedHealthCheck(long pid) throws KernelControlException {
+        try {
+            TimeUnit.SECONDS.sleep(PROCESS_ALIVE_CHECK_DELAY_SEC);
+        } catch (InterruptedException ie) {
+            throw new KernelControlException("Kernel alive check interrupted", ie);
+        }
+        if(!healthChecker.checkIfKernelRunning(pid)) {
+            throw new KernelControlException("Kernel launch failed.  Check kernel logs for details.");
+        }
+    }
+
     /**
      * Look for a Kernel PID that we previously launched and persisted to disk.  If successful,
      * set that PID as the launched kernel instance.
@@ -155,7 +205,7 @@ public class KernelLauncher {
                 // handle that later.
                 LOGGER.warn(
                         "Found old kernel pid = {} but could not determine if it is really running.  Assuming that it is.",
-                        currentInstance.getPid());
+                        currentInstance != null ? currentInstance.getPid() : "<unknown>");
                 return true;
             } catch (ClassNotFoundException | IOException ex) {
                 LOGGER.error("Found old kernel pid file at {}, but failed to deserialize it, " +
@@ -210,6 +260,10 @@ public class KernelLauncher {
         setCurrentInstance(null);
     }
 
+    public File getStorageLocation() {
+        return storageLocation;
+    }
+
     private KernelInstanceId retrievePid(File pidFile) throws IOException, ClassNotFoundException {
         FileInputStream fis = new FileInputStream(pidFile);
         ObjectInputStream ois = new ObjectInputStream(fis);
@@ -257,7 +311,10 @@ public class KernelLauncher {
         }
     }
 
-    static File choosePidStorageLocation() {
-        return new File("/tmp/kernel-pid");
+    static File choosePidStorageLocation(File directory) {
+        if(!directory.exists() || !directory.isDirectory()) {
+            throw new IllegalArgumentException("Pid storage location must be a directory that exists");
+        }
+        return new File(directory.getAbsolutePath() + File.separatorChar + PID_FILENAME);
     }
 }
