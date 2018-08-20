@@ -209,6 +209,14 @@ public class EquihashMiner extends AbstractMineRunner<AionBlock> {
                 ThreadLocalRandom.current().nextBytes(nonce);
 
                 Solution s = miner.mine(block, nonce);
+
+                // Add artifical sleep of block time to simulate mining
+                try {
+                    Thread.sleep(9500L);
+                } catch (InterruptedException e) {
+                    break;
+                }
+
                 if (s != null) {
                     IEvent ev = new EventConsensus(EventConsensus.CALLBACK.ON_SOLUTION);
                     ev.setFuncArgs(Collections.singletonList(s));
