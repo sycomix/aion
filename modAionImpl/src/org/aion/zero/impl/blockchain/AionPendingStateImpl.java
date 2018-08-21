@@ -371,6 +371,16 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     }
 
+    /**
+     * Produces a set of integers representing events that an EventExecuteService will use to filter
+     * out events. Essentially, the EventExecuteService will only add events that are one of the
+     * following events specified by the filter.
+     *
+     * This filter adds an event filter for BLOCK0/ONBEST0
+     * If there is a backup pool then an event filter for TX0/TXBACKUP0 is also added.
+     *
+     * @return A set of numeric filters.
+     */
     private Set<Integer> setEvtFilter() {
         Set<Integer> eventSN = new HashSet<>();
 
@@ -385,6 +395,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return eventSN;
     }
 
+    /**
+     * Adds the following two block events to the event manager: ONBLOCK0, ONBEST0.
+     */
     private void regBlockEvents() {
         List<IEvent> evts = new ArrayList<>();
         evts.add(new EventBlock(EventBlock.CALLBACK.ONBLOCK0));
@@ -393,6 +406,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         this.evtMgr.registerEvent(evts);
     }
 
+    /**
+     * Adds the following transaction event to the event manager: TXBACKUP0.
+     */
     private void regTxEvents() {
         List<IEvent> evts = new ArrayList<>();
         evts.add(new EventTx(EventTx.CALLBACK.TXBACKUP0));
@@ -400,22 +416,42 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         this.evtMgr.registerEvent(evts);
     }
 
+    /**
+     * Returns the repository's tracker.
+     *
+     * @return the repository's tracker.
+     */
     @Override
     public synchronized IRepositoryCache<?, ?, ?> getRepository() {
         // Todo : no class use this method.
         return pendingState;
     }
 
+    /**
+     * Returns the number of pending transactions.
+     *
+     * @return the number of pending transactions.
+     */
     public int getPendingTxSize() {
         return isSeed ? 0 : this.txPool.size();
     }
 
+    /**
+     * Returns a list of all the pending transactions.
+     *
+     * @return a list of all the pending transactions.
+     */
     @Override
     public synchronized List<AionTransaction> getPendingTransactions() {
         return isSeed ? new ArrayList<>() : this.txPool.snapshot();
 
     }
 
+    /**
+     * Returns the current best block in the blockchain.
+     *
+     * @return The best block.
+     */
     public synchronized AionBlock getBestBlock() {
         best.set(blockchain.getBestBlock());
         return best.get();
@@ -568,6 +604,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         }
     }
 
+    /**
+     * Broadcasts each valid transaction in transactions and returns the list of all such valid and
+     * broadcasted transactions.
+     *
+     * @param transactions A list of transactions to process.
+     * @return The list of all valid and broadcasted transactions.
+     */
     private List<AionTransaction> seedProcess(List<AionTransaction> transactions) {
         List<AionTransaction> newTx = new ArrayList<>();
         for (AionTransaction tx : transactions) {
@@ -713,6 +756,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return txReceipt;
     }
 
+    /**
+     * Returns the first block that is an ancestor of both b1 and b2.
+     *
+     * @param b1 A block.
+     * @param b2 A block.
+     * @return The first common ancestor of b1 and b2.
+     */
     private IAionBlock findCommonAncestor(IAionBlock b1, IAionBlock b2) {
         while (!b1.isEqual(b2)) {
             if (b1.getNumber() >= b2.getNumber()) {
@@ -1132,6 +1182,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return peersBest.get(position);
     }
 
+    /**
+     * Recovers the transaction cache from the repository.
+     */
     private void recoverCache() {
 
         LOGGER_TX.info("pendingCacheTx loading from DB");
@@ -1172,6 +1225,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         LOGGER_TX.info("{} pendingCacheTx loaded from DB into the pendingCache, {} ms", cnt, t2);
     }
 
+    /**
+     * Recovers the transaction pool from the repository.
+     */
     private void recoverPool() {
 
         LOGGER_TX.info("pendingPoolTx loading from DB");
