@@ -44,7 +44,7 @@ import java.io.Writer;
 
 public final class CfgConsensusPow extends CfgConsensus {
 
-    private final CfgEnergyStrategy cfgEnergyStrategy;
+    public final CfgEnergyStrategy cfgEnergyStrategy;
 
     CfgConsensusPow() {
         this.mining = false;
@@ -55,13 +55,13 @@ public final class CfgConsensusPow extends CfgConsensus {
         this.seed = false;
     }
 
-    private boolean mining;
+    public boolean mining;
 
-    private boolean seed;
+    public boolean seed;
 
-    private String minerAddress;
+    public String minerAddress;
 
-    private byte cpuMineThreads;
+    public byte cpuMineThreads;
 
     protected String extraData;
 

@@ -44,13 +44,13 @@ public class CfgTx {
         this.poolBackup = false;
     }
 
-    private int cacheMax;
+    public int cacheMax;
 
-    private boolean buffer;
+    public boolean buffer;
 
-    private boolean poolDump;
+    public boolean poolDump;
 
-    private boolean poolBackup;
+    public boolean poolBackup;
 
     public void fromXML(final XMLStreamReader sr) throws XMLStreamException {
         loop:
