@@ -1,3 +1,5 @@
+[![Build Status](https://ci.aion.network:8443/buildStatus/icon?job=aionnetwork/master)](https://ci.aion.network:8443/job/aionnetwork/job/master/)
+
 # Aion
 
 [https://aion.network](https://aion.network/)
