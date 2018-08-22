@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -19,6 +20,12 @@ import org.aion.base.util.ByteArrayWrapper;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.evtmgr.impl.mgr.EventMgrA0;
+import org.aion.log.AionLoggerFactory;
+import org.aion.log.LogEnum;
+import org.aion.p2p.IP2pMgr;
+import org.aion.p2p.impl.comm.Node;
+import org.aion.p2p.impl.comm.NodeMgr;
+import org.aion.p2p.impl1.P2pMgr;
 import org.aion.txpool.ITxPool;
 import org.aion.txpool.common.AccountState;
 import org.aion.txpool.zero.TxPoolA0;
@@ -35,6 +42,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
 
 /**
  * Class used to measure the performance of the AionPendingStateImpl class.
@@ -72,6 +80,8 @@ public class AionPendingStateImplBenchmark {
     private static final int DUMP_POOL_AVG_SIZE = 1_000;
     private static final int DUMP_POOL_LARGE_SIZE = 10_000;
     private static final int NUM_DUMP_POOL_REQUESTS = 50;
+    private static final int FEW_PEERS = 50;
+    private static final int MANY_PEERS = 500;
     private static final BigInteger LARGE_BIG_INT = BigInteger.TWO.pow(1_000);
 
     /**
@@ -117,7 +127,9 @@ public class AionPendingStateImplBenchmark {
 
         CLEAR_OUTDATED_AVG, CLEAR_OUTDATED_LARGE,
 
-        DUMP_POOL_AVG, DUMP_POOL_LARGE
+        DUMP_POOL_AVG, DUMP_POOL_LARGE,
+
+        GET_PEERS_BEST_FEW, GET_PEERS_BEST_MANY
     }
 
     /**
@@ -344,8 +356,16 @@ public class AionPendingStateImplBenchmark {
         storeRecord(condition, end - start);
     }
 
+    /**
+     * calls getPeersBestBlk13() on a P2pMgr set to have a number of peers as specified by
+     * condition.
+     */
     private void recordGetPeersBestBlk13(BenchmarkCondition condition) {
-        //TODO
+        setupP2pManager(getNumPeersForEvent(condition.event));
+        long start = System.nanoTime();
+        pendingState.getPeersBestBlk13();
+        long end = System.nanoTime();
+        storeRecord(condition, end - start);
     }
 
     private void recordRecoverCache(BenchmarkCondition condition) {
@@ -575,6 +595,59 @@ public class AionPendingStateImplBenchmark {
      */
     private int getTxPoolSnapshotSize(Event event) {
         return (event == Event.DUMP_POOL_AVG) ? DUMP_POOL_AVG_SIZE : DUMP_POOL_LARGE_SIZE;
+    }
+
+    /**
+     * Returns the number of peers to set in the P2pMgr object.
+     */
+    private int getNumPeersForEvent(Event event) {
+        return (event == Event.GET_PEERS_BEST_FEW) ? FEW_PEERS : MANY_PEERS;
+    }
+
+    /**
+     * Constructs a new P2pMgr object that has numPeers peers (active nodes) and assigns it to the
+     * AionPendingStateImpl's p2pMgr field.
+     */
+    private void setupP2pManager(int numPeers) {
+        P2pMgr p2pManager = newEmptyP2pManager(numPeers);
+        p2pManager.nodeMgr = newNodeManagerWithActiveNodes(p2pManager, numPeers);
+        pendingState.p2pMgr = p2pManager;
+    }
+
+    /**
+     * Constructs a new NodeMgr object that has numActiveNodes active nodes and holds a reference
+     * to the p2pMgr p2pManager.
+     */
+    private NodeMgr newNodeManagerWithActiveNodes(P2pMgr p2pManager, int numActiveNodes) {
+        Logger logger = AionLoggerFactory.getLogger(LogEnum.VM.toString());
+        NodeMgr nodeManager = new NodeMgr(p2pManager, numActiveNodes, 1, logger);
+        for (int i = 0; i < numActiveNodes; i++) {
+            Node node = new Node("127.0.0.1", 40_000);
+            nodeManager.activeNodes.put(i, node);
+        }
+        return nodeManager;
+    }
+
+    /**
+     * Returns a new P2pMgr object that can have numActiveNodes active nodes but does not yet have
+     * any.
+     */
+    private P2pMgr newEmptyP2pManager(int numActiveNodes) {
+        String[] bootNodes = new String[1];
+        bootNodes[0] = "p2p://" + UUID.randomUUID().toString() + "@127.0.0.1:40000";
+
+        return new P2pMgr(
+            0,
+            "",
+            "0",
+            "127.0.0.0",
+            40_000,
+            bootNodes,
+            false,
+            1,
+            numActiveNodes,
+            false,
+            1);
     }
 
     /**
@@ -876,6 +949,9 @@ public class AionPendingStateImplBenchmark {
             case DUMP_POOL_AVG:
             case DUMP_POOL_LARGE: recordDumpPool(condition);
                 break;
+            case GET_PEERS_BEST_FEW:
+            case GET_PEERS_BEST_MANY: recordGetPeersBestBlk13(condition);
+                break;
         }
     }
 
@@ -1104,6 +1180,10 @@ public class AionPendingStateImplBenchmark {
                 return "DumpPool() with an average-sized accountView";
             case DUMP_POOL_LARGE:
                 return "DumpPool() with a large-sized accountView";
+            case GET_PEERS_BEST_FEW:
+                return "getPeersBestBlk13() with few peers";
+            case GET_PEERS_BEST_MANY:
+                return "getPeersBestBlk13() with many peers";
             default: return "";
         }
     }

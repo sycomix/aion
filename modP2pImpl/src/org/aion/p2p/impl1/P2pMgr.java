@@ -92,7 +92,7 @@ public final class P2pMgr implements IP2pMgr {
     private boolean syncSeedsOnly, upnpEnable;
     private String selfRevision, selfShortId;
     private byte[] selfNodeId, selfIp;
-    private INodeMgr nodeMgr;
+    public INodeMgr nodeMgr;
     private final Map<Integer, List<Handler>> handlers = new ConcurrentHashMap<>();
     private final Set<Short> versions = new HashSet<>();
     private final Map<Integer, Integer> errCnt = Collections.synchronizedMap(new LRUMap<>(128));

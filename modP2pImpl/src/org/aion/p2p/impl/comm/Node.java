@@ -76,7 +76,7 @@ public final class Node implements INode {
     /**
      * constructor for initial stage of connections from network
      */
-    Node(String _ipStr, int port) {
+    public Node(String _ipStr, int port) {
         if (port > 65535 || port < 1) {
             throw new IllegalArgumentException();
         }
