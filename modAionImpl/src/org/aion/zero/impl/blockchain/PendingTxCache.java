@@ -47,7 +47,7 @@ public class PendingTxCache {
     private Set<byte[]> cacheClearTxHash;
     private boolean isPoolBackup;
 
-    PendingTxCache() {
+    public PendingTxCache() {
         CacheMax = 256 * 100_000; //25.6MB
         cacheTxMap = new LRUMap<>(cacheAccountLimit);
         cachedAccountSize = new LRUMap<>(cacheAccountLimit);
@@ -85,7 +85,7 @@ public class PendingTxCache {
         return (currentSize.get() + txSize) > CacheMax;
     }
 
-    void addCacheTx(AionTransaction tx) {
+    public void addCacheTx(AionTransaction tx) {
         if (tx == null) {
             throw new NullPointerException();
         }

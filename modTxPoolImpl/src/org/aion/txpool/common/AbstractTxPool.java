@@ -69,7 +69,7 @@ public abstract class AbstractTxPool<TX extends ITransaction> {
      * @TXState transaction data and sort status
      */
     // TODO : should limit size
-    private final Map<ByteArrayWrapper, TXState> mainMap = new ConcurrentHashMap<>();
+    public final Map<ByteArrayWrapper, TXState> mainMap = new ConcurrentHashMap<>();
     /**
      * timeView : SortedMap<Long, LinkedHashSet<ByteArrayWrapper>>
      *
@@ -94,7 +94,7 @@ public abstract class AbstractTxPool<TX extends ITransaction> {
      * @ByteArrayWrapper account address
      * @AccountState
      */
-    private final Map<Address, AccountState> accountView = new ConcurrentHashMap<>();
+    public final Map<Address, AccountState> accountView = new ConcurrentHashMap<>();
     /**
      * poolStateView : Map<ByteArrayWrapper, List<PoolState>>
      *

@@ -1,6 +1,7 @@
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -14,13 +15,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.aion.base.type.Address;
+import org.aion.base.util.ByteArrayWrapper;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.evtmgr.impl.mgr.EventMgrA0;
+import org.aion.txpool.ITxPool;
+import org.aion.txpool.common.AccountState;
+import org.aion.txpool.zero.TxPoolA0;
 import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.StandaloneBlockchain;
 import org.aion.zero.impl.StandaloneBlockchain.Builder;
 import org.aion.zero.impl.blockchain.AionPendingStateImpl;
+import org.aion.zero.impl.blockchain.PendingTxCache;
 import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.types.AionTransaction;
@@ -56,6 +62,16 @@ public class AionPendingStateImplBenchmark {
     private static final int AVG_BLOCK_HEIGHT = 10_000;
     private static final int FAR_BLOCK_HEIGHT = 100_000;
     private static final int CHAIN_EXTRA_HEIGHT = 75_000;
+    private static final int DEFAULT_CHAIN_HEIGHT = 125_000;
+    private static final int PENDING_TX_AVG_SIZE = 300;
+    private static final int PENDING_TX_LARGE_SIZE = 30_000;
+    private static final int OUTDATED_AVG_SIZE = 300;
+    private static final int OUTDATED_LARGE_SIZE = 30_000;
+    private static final int ACC_STATE_MAP_SIZE = 100;
+    private static final int WRAPPER_SIZE = 100;
+    private static final int DUMP_POOL_AVG_SIZE = 1_000;
+    private static final int DUMP_POOL_LARGE_SIZE = 10_000;
+    private static final int NUM_DUMP_POOL_REQUESTS = 50;
     private static final BigInteger LARGE_BIG_INT = BigInteger.TWO.pow(1_000);
 
     /**
@@ -93,7 +109,15 @@ public class AionPendingStateImplBenchmark {
         FIND_ANCESTOR_AVG_DIST_EQUIDISTANT_AT_TOP, FIND_ANCESTOR_AVG_DIST_EQUIDISTANT_NOT_TOP,
         FIND_ANCESTOR_AVG_DIST_NONEQUIDISTANT_AT_TOP, FIND_ANCESTOR_AVG_DIST_NONEQUIDISTANT_NOT_TOP,
         FIND_ANCESTOR_FAR_DIST_EQUIDISTANT_AT_TOP, FIND_ANCESTOR_FAR_DIST_EQUIDISTANT_NOT_TOP,
-        FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_AT_TOP, FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_NOT_TOP
+        FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_AT_TOP, FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_NOT_TOP,
+
+        PROCESS_BEST_AVG_CHAIN, PROCESS_BEST_LONG_CHAIN,
+
+        FLUSH_CACHE_AVG, FLUSH_CACHE_LARGE,
+
+        CLEAR_OUTDATED_AVG, CLEAR_OUTDATED_LARGE,
+
+        DUMP_POOL_AVG, DUMP_POOL_LARGE
     }
 
     /**
@@ -114,17 +138,19 @@ public class AionPendingStateImplBenchmark {
     }
 
     //TODO: make a clean method that completely tears down the APSI instance via all exposed fields.
+    //TODO: just need some default objects to use.
 
     @Before
     public void setup() {
         records = new HashMap<>();
         orderOfCalls = new ArrayList<>();
-        AionBlockchainImpl.inst().setEventManager(new EventMgrA0(new Properties())); // is this correct setup?
+        AionBlockchainImpl.inst().setEventManager(new EventMgrA0(new Properties())); //TODO: is this correct setup?
     }
 
     @Test
-    public void testRandomizedBenchmarking() {
+    public void testRandomizedBenchmarking() throws InterruptedException {
         makeCall(new BenchmarkCondition(Event.INST));
+        setupEmptyBlockchain();
 //        getRandomCallOrder();
         getCustomCallOrder();
         for (BenchmarkCondition condition : orderOfCalls) {
@@ -176,12 +202,17 @@ public class AionPendingStateImplBenchmark {
      * Calls addPendingTransaction() using a transaction that corresponds to the event inside
      * condition.
      */
-    private void recordAddPendingTransaction(BenchmarkCondition condition) {
+    private void recordAddPendingTransaction(BenchmarkCondition condition) throws InterruptedException {
         ExecutorService threads = Executors.newFixedThreadPool(DEFAULT_NUM_THREADS);
         AionTransaction transaction = getTransactionForEvent(condition.event);
         long start = System.nanoTime();
         for (int i = 0; i < DEFAULT_NUM_REQUESTS; i++) {
             threads.execute(new AddPendingTransactionThread(transaction));
+        }
+        threads.shutdown();
+        if (!threads.awaitTermination(2, TimeUnit.MINUTES)) {
+            System.err.println("ERROR: Timed out!");
+            System.exit(1);
         }
         long end = System.nanoTime();
         storeRecord(condition, end - start);
@@ -191,12 +222,17 @@ public class AionPendingStateImplBenchmark {
      * calls addPendingTransactions() using a list of transactions that correspond to the event
      * inside condition.
      */
-    private void recordAddPendingTransactions(BenchmarkCondition condition) {
+    private void recordAddPendingTransactions(BenchmarkCondition condition) throws InterruptedException {
         ExecutorService threads = Executors.newFixedThreadPool(DEFAULT_NUM_THREADS);
         List<AionTransaction> transactions = getTransactionsForEvent(condition.event);
         long start = System.nanoTime();
         for (int i = 0; i < DEFAULT_NUM_REQUESTS; i++) {
             threads.execute(new AddPendingTransactionsThread(transactions));
+        }
+        threads.shutdown();
+        if (!threads.awaitTermination(2, TimeUnit.MINUTES)) {
+            System.err.println("ERROR: Timed out!");
+            System.exit(1);
         }
         long end = System.nanoTime();
         storeRecord(condition, end - start);
@@ -241,36 +277,71 @@ public class AionPendingStateImplBenchmark {
         storeRecord(condition, end - start);
     }
 
-    private void recordProcessBest(BenchmarkCondition condition) {
-        //TODO -- use multiple threads.
+    /**
+     * calls processBest() on a blockchain according to the specifications in condition.
+     */
+    private void recordProcessBest(BenchmarkCondition condition) throws InterruptedException {
+        ExecutorService threads = Executors.newFixedThreadPool(DEFAULT_NUM_THREADS);
+        setupBlockchain(DEFAULT_CHAIN_HEIGHT);
+        AionBlock nextBest = produceNextBestBlock();
+        pendingState.txBuffer = new ArrayList<>();
+        long start = System.nanoTime();
+        for (int i = 0; i < DEFAULT_NUM_REQUESTS; i++) {
+            threads.execute(new ProcessBestThread(nextBest));
+        }
+        threads.shutdown();
+        if (!threads.awaitTermination(2, TimeUnit.MINUTES)) {
+            System.err.println("ERROR: Timed out!");
+            System.exit(1);
+        }
+        long end = System.nanoTime();
+        pendingState.txBuffer = null;
+        storeRecord(condition, end - start);
     }
 
+    /**
+     * calls flushCachePendingTx() using a PendingTxCache object according to the specifications in
+     * condition.
+     */
     private void recordFlushCachePendingTx(BenchmarkCondition condition) {
-        //TODO
+        setupPendingTxCache(getPendingCacheSizeForEvent(condition.event));
+        long start = System.nanoTime();
+        pendingState.flushCachePendingTx();
+        long end = System.nanoTime();
+        storeRecord(condition, end - start);
     }
 
-    private void recordProcessBestInternal(BenchmarkCondition condition) {
-        //TODO
-    }
-
+    /**
+     * calls clearOutdated() using an ITxPool object that has an outdated transaction list of a size
+     * specified by the event inside condition.
+     */
     private void recordClearOutdated(BenchmarkCondition condition) {
-        //TODO
+        setupOutdatedTransactions(getNumOutdatedTxsForEvent(condition.event));
+        long start = System.nanoTime();
+        // block number actually has no time complexity affect; it is used for logging in the method.
+        pendingState.clearOutdated(0);
+        long end = System.nanoTime();
+        storeRecord(condition, end - start);
     }
 
-    private void recordClearPending(BenchmarkCondition condition) {
-        //TODO
-    }
-
-    private void recordUpdateState(BenchmarkCondition condition) {
-        //TODO
-    }
-
-    private void recordDumpPool(BenchmarkCondition condition) {
-        //TODO -- use multiple threads.
-    }
-
-    private void recordLoadPendingTx(BenchmarkCondition condition) {
-        //TODO
+    /**
+     * calls DumpPool() on an ITxPool set up for a call to its snapshot method according to the
+     * specifications in condition.
+     */
+    private void recordDumpPool(BenchmarkCondition condition) throws InterruptedException {
+        ExecutorService threads = Executors.newFixedThreadPool(FEW_THREADS);
+        setupTransactionPoolForSnapshot(getTxPoolSnapshotSize(condition.event));
+        long start = System.nanoTime();
+        for (int i = 0; i < NUM_DUMP_POOL_REQUESTS; i++) {
+            threads.execute(new DumpPoolThread());
+        }
+        threads.shutdown();
+        if (!threads.awaitTermination(2, TimeUnit.MINUTES)) {
+            System.err.println("ERROR: Timed out!");
+            System.exit(1);
+        }
+        long end = System.nanoTime();
+        storeRecord(condition, end - start);
     }
 
     private void recordGetPeersBestBlk13(BenchmarkCondition condition) {
@@ -348,6 +419,12 @@ public class AionPendingStateImplBenchmark {
         long nrgPrice = 1;
 
         switch (event) {
+            case DUMP_POOL_AVG:
+            case DUMP_POOL_LARGE:
+            case CLEAR_OUTDATED_AVG:
+            case CLEAR_OUTDATED_LARGE:
+            case FLUSH_CACHE_AVG:
+            case FLUSH_CACHE_LARGE:
             case ADD_PENDING_IMPL_DIFF_NONCE:
             case ADD_PENDING_IMPL_AVG_DATA:
             case ADD_TX_AVG_DATA: transaction = new AionTransaction(
@@ -449,6 +526,13 @@ public class AionPendingStateImplBenchmark {
     }
 
     /**
+     * Returns the size of the PendingTxCache object for the Event event.
+     */
+    private int getPendingCacheSizeForEvent(Event event) {
+        return (event == Event.FLUSH_CACHE_AVG) ? PENDING_TX_AVG_SIZE : PENDING_TX_LARGE_SIZE;
+    }
+
+    /**
      * Returns the number of calls to make for a call represented by Event event if event is a
      * thread-dependent event -- otherwise this is meaningless.
      */
@@ -478,42 +562,131 @@ public class AionPendingStateImplBenchmark {
     }
 
     /**
-     * Returns a pairing of the two blocks that are to be used for the findCommonAncestor() call.
-     * The distince to the ancestor is specified by event.
+     * Returns the number of outdated transactions to put in the ITxPool object for the specified
+     * event.
      */
-    private Pair<IAionBlock, IAionBlock> setupBlockchainForCommonAncestors(Event event) {
-        // Set up the new blockchain.
+    private int getNumOutdatedTxsForEvent(Event event) {
+        return (event == Event.CLEAR_OUTDATED_AVG) ? OUTDATED_AVG_SIZE : OUTDATED_LARGE_SIZE;
+    }
+
+    /**
+     * Returns the size of the accountView field that is used by the snapshot call for the Event
+     * event.
+     */
+    private int getTxPoolSnapshotSize(Event event) {
+        return (event == Event.DUMP_POOL_AVG) ? DUMP_POOL_AVG_SIZE : DUMP_POOL_LARGE_SIZE;
+    }
+
+    /**
+     * Constructs a new ITxPool object that contains an accountView field of size size. This is the
+     * field used mostly by the snapshot call.
+     */
+    private void setupTransactionPoolForSnapshot(int size) {
+        TxPoolA0<AionTransaction> txPool = new TxPoolA0<>();
+
+        for (int i = 0; i < size; i++) {
+            // using any dump pool event below will have the same effect..
+            Address account = new Address(RandomUtils.nextBytes(Address.ADDRESS_LEN));
+            txPool.accountView.put(account, createNewAccountState(ACC_STATE_MAP_SIZE));
+            txPool.add(getTransactionForEvent(Event.DUMP_POOL_AVG));
+        }
+
+        pendingState.txPool = txPool;
+    }
+
+    /**
+     * Constructs a new AccountState object that contains a mapping of size mapSize.
+     */
+    private AccountState createNewAccountState(int mapSize) {
+        Map<BigInteger, SimpleEntry<ByteArrayWrapper, BigInteger>> map = new HashMap<>();
+
+        for (int i = 0; i < mapSize; i++) {
+            ByteArrayWrapper wrapper = ByteArrayWrapper.wrap(RandomUtils.nextBytes(WRAPPER_SIZE));
+            map.put(BigInteger.ZERO, new SimpleEntry<>(wrapper, BigInteger.ZERO));
+        }
+
+        AccountState accountState = new AccountState();
+        accountState.updateMap(map);
+        return accountState;
+    }
+
+    /**
+     * Constructs an ITxPool instance that will hold numOutdated outdated transactions and assigns
+     * it to the AionPendingStateImpl's txPool field.
+     */
+    private void setupOutdatedTransactions(int numOutdated) {
+        ITxPool<AionTransaction> txPool = new TxPoolA0<>();
+        for (int i = 0; i < numOutdated; i++) {
+            // Any clear outdated event will have the same effect here..
+            txPool.add(getTransactionForEvent(Event.CLEAR_OUTDATED_AVG));
+        }
+        pendingState.txPool = txPool;
+    }
+
+    /**
+     * Constructs a PendingTxCache object whose size is cacheSize and assigns it to the
+     * AionPendingStateImpl's pendingTxCache field.
+     */
+    private void setupPendingTxCache(int cacheSize) {
+        PendingTxCache pendingCache = new PendingTxCache();
+        for (int i = 0; i < cacheSize; i++) {
+            // Any flush event will do the same thing here..
+            pendingCache.addCacheTx(getTransactionForEvent(Event.FLUSH_CACHE_AVG));
+        }
+        pendingState.pendingTxCache = pendingCache;
+    }
+
+    /**
+     * Produces a new IAionBlock whose parent is the current best block in the
+     * AionPendingStateImpl's blockchain.
+     */
+    private AionBlock produceNextBestBlock() {
+        return pendingState.blockchain.createNewBlock(
+            pendingState.blockchain.getBestBlock(),
+            null,                     //TODO: is this okay? Should we actually add txs?
+            false);
+    }
+
+    /**
+     * Constructs a new empty blockchain and assigns it to the AionPendingStateImpl's blockchain
+     * field.
+     */
+    private void setupEmptyBlockchain() {
         StandaloneBlockchain.Bundle bundle = new Builder()
             .withValidatorConfiguration("simple")
             .withDefaultAccounts()
             .build();
-        StandaloneBlockchain blockchain = bundle.bc;
+        pendingState.blockchain = bundle.bc;
+    }
 
+    /**
+     * Constructs a blockchain whose height is height and assigns it to the AionPendingStateImpl's
+     * blockchain field.
+     */
+    private void setupBlockchain(int height) {
+        // Make the blockchain the desired height.
+        for (int currentHeight = 0; currentHeight < height; currentHeight++) {
+            AionBlock block = pendingState.blockchain.createNewBlock(
+                pendingState.blockchain.getBestBlock(),
+                null,                   //TODO: is this okay? Should we actually add txs?
+                false);
+            pendingState.blockchain.add(block);
+        }
+    }
+
+    /**
+     * Returns a pairing of the two blocks that are to be used for the findCommonAncestor() call.
+     * The distince to the ancestor is specified by event.
+     */
+    private Pair<IAionBlock, IAionBlock> setupBlockchainForCommonAncestors(Event event) {
         Pair<Integer, Integer> blockHeights = getBlockHeightsForCommonAncestors(event);
         int height1 = blockHeights.getLeft();
         int height2 = blockHeights.getRight();
         int blockchainHeight = getBlockchainHeight(event, Math.max(height1, height2));
 
-        // Make the blockchain and grab the two query blocks.
-        IAionBlock block1 = null, block2 = null;
-        for (int currentHeight = 0; currentHeight < blockchainHeight; currentHeight++) {
-            AionBlock block = blockchain.createNewBlock(
-                blockchain.getBestBlock(),
-                null,                       //TODO: is this okay? Should we actually add txs?
-                false);
-            blockchain.add(block);
-
-            // Assign the query blocks once we hit the specified height for each one.
-            if (currentHeight == height1) {
-                block1 = block;
-            }
-            if (currentHeight == height2) {
-                block2 = block;
-            }
-        }
-
-        // Give the AionPendingStateImpl class this newly constructed blockchain to use.
-        pendingState.blockchain = blockchain;
+        setupBlockchain(blockchainHeight);
+        IAionBlock block1 = pendingState.blockchain.getBlockByNumber(height1);
+        IAionBlock block2 = pendingState.blockchain.getBlockByNumber(height2);
         return Pair.of(block1, block2);
     }
 
@@ -623,7 +796,7 @@ public class AionPendingStateImplBenchmark {
      * Makes the appropriate call corresponding to the specified BenchmarkCondition, which
      * specifies the event and its code paths.
      */
-    private void makeCall(BenchmarkCondition condition) {
+    private void makeCall(BenchmarkCondition condition) throws InterruptedException {
         setUpCodePath(condition.path);
         switch (condition.event) {
             case INST: recordInst(condition);
@@ -691,6 +864,18 @@ public class AionPendingStateImplBenchmark {
             case FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_AT_TOP:
             case FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_NOT_TOP: recordFindCommonAncestor(condition);
                 break;
+            case PROCESS_BEST_AVG_CHAIN:
+            case PROCESS_BEST_LONG_CHAIN: recordProcessBest(condition);
+                break;
+            case FLUSH_CACHE_AVG:
+            case FLUSH_CACHE_LARGE: recordFlushCachePendingTx(condition);
+                break;
+            case CLEAR_OUTDATED_AVG:
+            case CLEAR_OUTDATED_LARGE: recordClearOutdated(condition);
+                break;
+            case DUMP_POOL_AVG:
+            case DUMP_POOL_LARGE: recordDumpPool(condition);
+                break;
         }
     }
 
@@ -701,7 +886,7 @@ public class AionPendingStateImplBenchmark {
      */
     private void getCustomCallOrder() {
         orderOfCalls = new CallBuilder()
-            .add(new BenchmarkCondition(Event.FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_NOT_TOP))
+            .add(new BenchmarkCondition(Event.DUMP_POOL_AVG))
             .build();
     }
 
@@ -903,6 +1088,22 @@ public class AionPendingStateImplBenchmark {
                 return "findCommonAncestor() with non-equidistant blocks at far distance at top";
             case FIND_ANCESTOR_FAR_DIST_NONEQUIDISTANT_NOT_TOP:
                 return "findCommonAncestor() with non-equidistant blocks at far distance NOT at top";
+            case PROCESS_BEST_AVG_CHAIN:
+                return "processBest() with an average-sized blockchain";
+            case PROCESS_BEST_LONG_CHAIN:
+                return "processBest() with a large-sized blockchain";
+            case FLUSH_CACHE_AVG:
+                return "flushCachePendingTx() with an average-sized transaction cache";
+            case FLUSH_CACHE_LARGE:
+                return "flushCachePendingTx() with a large-sized transaction cache";
+            case CLEAR_OUTDATED_AVG:
+                return "clearOutdated() with an average-sized outdated transaction pool";
+            case CLEAR_OUTDATED_LARGE:
+                return "clearOutdated() with a large-sized outdated transaction pool";
+            case DUMP_POOL_AVG:
+                return "DumpPool() with an average-sized accountView";
+            case DUMP_POOL_LARGE:
+                return "DumpPool() with a large-sized accountView";
             default: return "";
         }
     }
@@ -955,6 +1156,7 @@ public class AionPendingStateImplBenchmark {
      * Thread whose job is simply to call getRepository().
      */
     private class GetRepoThread implements Runnable {
+
         @Override
         public void run() {
             pendingState.getRepository();
@@ -990,6 +1192,34 @@ public class AionPendingStateImplBenchmark {
         @Override
         public void run() {
             pendingState.addPendingTransactions(this.transactions);
+        }
+    }
+
+    /**
+     * Thread whose job is simply to call processBestThread().
+     */
+    private class ProcessBestThread implements Runnable {
+        private AionBlock block;
+
+        ProcessBestThread(AionBlock block) {
+            this.block = block;
+        }
+
+        @Override
+        public void run() {
+            // Using null receipts takes us down worst-case path & easiest to set up..
+            pendingState.processBest(this.block, null);
+        }
+    }
+
+    /**
+     * Thread whose job is simply to call DumpPool().
+     */
+    private class DumpPoolThread implements Runnable {
+
+        @Override
+        public void run() {
+            pendingState.DumpPool();
         }
     }
 
@@ -1047,7 +1277,26 @@ public class AionPendingStateImplBenchmark {
         List<BenchmarkCondition> build() {
             return this.calls;
         }
+    }
 
+    /**
+     * A convenience class for building a set of code paths to enforce.
+     */
+    private class CodePathBuilder {
+        private Set<CodePath> paths;
+
+        CodePathBuilder() {
+            this.paths = new HashSet<>();
+        }
+
+        CodePathBuilder add(CodePath path) {
+            this.paths.add(path);
+            return this;
+        }
+
+        Set<CodePath> build() {
+            return this.paths;
+        }
     }
 
 }
