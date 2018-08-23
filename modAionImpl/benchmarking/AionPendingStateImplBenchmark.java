@@ -1,14 +1,15 @@
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -22,7 +23,6 @@ import org.aion.crypto.ECKeyFac;
 import org.aion.evtmgr.impl.mgr.EventMgrA0;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
-import org.aion.p2p.IP2pMgr;
 import org.aion.p2p.impl.comm.Node;
 import org.aion.p2p.impl.comm.NodeMgr;
 import org.aion.p2p.impl1.P2pMgr;
@@ -56,7 +56,7 @@ public class AionPendingStateImplBenchmark {
     private static AionPendingStateImpl pendingState;
 
     // parameters for tuning.
-    private static final int FEW_THREADS = 5;
+    private static final int FEW_THREADS = 2;
     private static final int MANY_THREADS = 50;
     private static final int FEW_REQUESTS = 300;
     private static final int AVG_REQUESTS = 10_000;
@@ -82,6 +82,7 @@ public class AionPendingStateImplBenchmark {
     private static final int NUM_DUMP_POOL_REQUESTS = 50;
     private static final int FEW_PEERS = 50;
     private static final int MANY_PEERS = 500;
+    private static final int NUM_SPAM_RUNS = 15_000;
     private static final BigInteger LARGE_BIG_INT = BigInteger.TWO.pow(1_000);
 
     /**
@@ -129,7 +130,9 @@ public class AionPendingStateImplBenchmark {
 
         DUMP_POOL_AVG, DUMP_POOL_LARGE,
 
-        GET_PEERS_BEST_FEW, GET_PEERS_BEST_MANY
+        GET_PEERS_BEST_FEW, GET_PEERS_BEST_MANY,
+
+        WARMUP
     }
 
     /**
@@ -149,9 +152,6 @@ public class AionPendingStateImplBenchmark {
         singleTransactionEvents.put(5, Event.ADD_TX_NULL_TO);
     }
 
-    //TODO: make a clean method that completely tears down the APSI instance via all exposed fields.
-    //TODO: just need some default objects to use.
-
     @Before
     public void setup() {
         records = new HashMap<>();
@@ -163,12 +163,22 @@ public class AionPendingStateImplBenchmark {
     public void testRandomizedBenchmarking() throws InterruptedException {
         makeCall(new BenchmarkCondition(Event.INST));
         setupEmptyBlockchain();
-//        getRandomCallOrder();
         getCustomCallOrder();
         for (BenchmarkCondition condition : orderOfCalls) {
             makeCall(condition);
         }
         printRecords();
+    }
+
+    /**
+     * Produces a custom built ordering of each call event and assigns it to the orderOfCalls field.
+     */
+    private void getCustomCallOrder() {
+        orderOfCalls = new CallBuilder()
+            .add(new BenchmarkCondition(Event.WARMUP))
+            .add(new BenchmarkCondition(Event.ADD_TX_AVG_DATA))
+            .repeatLastCallNumTimes(5)
+            .build();
     }
 
     //<----------------------------METHODS FOR PERFORMANCE RECORDING------------------------------->
@@ -368,12 +378,17 @@ public class AionPendingStateImplBenchmark {
         storeRecord(condition, end - start);
     }
 
-    private void recordRecoverCache(BenchmarkCondition condition) {
-        //TODO
-    }
-
-    private void recordRecoverPool(BenchmarkCondition condition) {
-        //TODO
+    /**
+     * A simple warmup method.
+     */
+    private void warmup(BenchmarkCondition condition) {
+        long start = System.nanoTime();
+        List<String> warmupList = new ArrayList<>(NUM_SPAM_RUNS);
+        for (int i = 0; i < NUM_SPAM_RUNS; i++) {
+            warmupList.add(Integer.toString(i));
+        }
+        long end = System.nanoTime();
+        storeRecord(condition, end - start);
     }
 
     //<----------------------------GRUNT WORK HELPER METHODS--------------------------------------->
@@ -952,32 +967,9 @@ public class AionPendingStateImplBenchmark {
             case GET_PEERS_BEST_FEW:
             case GET_PEERS_BEST_MANY: recordGetPeersBestBlk13(condition);
                 break;
+            case WARMUP: warmup(condition);
+                break;
         }
-    }
-
-    //<-------------------------METHODS THAT PRODUCE EVENT ORDERINGS------------------------------->
-
-    /**
-     * Produces a custom built ordering of each call event and assigns it to the orderOfCalls field.
-     */
-    private void getCustomCallOrder() {
-        orderOfCalls = new CallBuilder()
-            .add(new BenchmarkCondition(Event.DUMP_POOL_AVG))
-            .build();
-    }
-
-    /**
-     * Produces a randomized ordering of each possible event (and each relevant code path
-     * combination) and assigns it to the orderOfCalls field.
-     */
-    private void getRandomCallOrder() {
-        List<Event> events = new ArrayList<>(Arrays.asList(Event.values()));
-        List<BenchmarkCondition> ordering = new ArrayList<>();
-        for (Event event : events) {
-            ordering.add(new BenchmarkCondition(event));
-        }
-        Collections.shuffle(ordering);
-        orderOfCalls = ordering;
     }
 
     //<----------------------------------HELPERS FOR DISPLAYING------------------------------------>
@@ -985,7 +977,7 @@ public class AionPendingStateImplBenchmark {
     /**
      * Displays the maximum duration in durations.
      */
-    private void printMaxDuration(List<Long> durations) {
+    private void printMaxOf(List<Long> durations) {
         long maxDuration = durations.stream().mapToLong(l -> l).max().getAsLong();
         System.out.printf(
             "\n\t\tMax duration: %,d milliseconds (%,d nanoseconds)",
@@ -996,7 +988,7 @@ public class AionPendingStateImplBenchmark {
     /**
      * Displays the minimum duration in durations.
      */
-    private void printMinDuration(List<Long> durations) {
+    private void printMinOf(List<Long> durations) {
         long minDuration = durations.stream().mapToLong(l -> l).min().getAsLong();
         System.out.printf(
             "\n\t\tMin duration: %,d milliseconds (%,d nanoseconds)",
@@ -1007,17 +999,63 @@ public class AionPendingStateImplBenchmark {
     /**
      * Displays the average duration in durations.
      */
-    private void printAverageDuration(List<Long> durations) {
+    private void printAverageOf(List<Long> durations) {
         BigDecimal sum = BigDecimal.ZERO;
         for (Long time : durations) {
             sum = sum.add(BigDecimal.valueOf(time));
         }
         BigDecimal average = sum.divide(BigDecimal.valueOf(durations.size()), RoundingMode.HALF_EVEN);
-        BigDecimal millisAvg = average.divide(BigDecimal.valueOf(1_000_000));
+        BigDecimal millisAvg = average.divide(
+            BigDecimal.valueOf(1_000_000), new MathContext(2, RoundingMode.HALF_EVEN));
         System.out.printf(
             "\n\t\tAverage duration: %s milliseconds (%s nanoseconds)",
             String.format("%,.2f", millisAvg),
             String.format("%,.2f", average));
+    }
+
+    /**
+     * Displays the mean duration in durations.
+     */
+    private void printMeanOf(List<Long> durations) {
+        Collections.sort(durations);
+        long meanDuration = durations.get(Math.floorDiv(durations.size(), 2));
+        System.out.printf(
+            "\n\t\tMean duration: %s milliseconds (%s nanoseconds)",
+            TimeUnit.NANOSECONDS.toMillis(meanDuration),
+            meanDuration);
+    }
+
+    /**
+     * Returns the variance of the durations in durations.
+     */
+    private BigDecimal computeVarianceOf(List<Long> durations) {
+        Collections.sort(durations);
+        long meanDuration = durations.get(Math.floorDiv(durations.size(), 2));
+
+        BigDecimal variance = BigDecimal.ZERO;
+        for (Long duration : durations) {
+            BigDecimal diff = BigDecimal.valueOf(duration - meanDuration);
+            variance = variance.add(diff.pow(2));
+        }
+
+        return variance.divide(
+            BigDecimal.valueOf(durations.size()),
+            new MathContext(4, RoundingMode.HALF_EVEN));
+    }
+
+    /**
+     * Displays the standard deviation of the durations in durations.
+     */
+    private void printStandardDeviationOf(List<Long> durations) {
+        BigDecimal variance = computeVarianceOf(durations);
+        BigDecimal stdDev = variance.sqrt(new MathContext(4, RoundingMode.HALF_EVEN));
+        BigDecimal millisStdDev = stdDev.divide(
+            BigDecimal.valueOf(1_000_000), new MathContext(4, RoundingMode.HALF_EVEN));
+
+        System.out.printf(
+            "\n\t\tStandard deviation is: %s milliseconds (%s nanoseconds)",
+            String.format("%,.4f", millisStdDev),
+            String.format("%,.4f", stdDev));
     }
 
     /**
@@ -1032,17 +1070,17 @@ public class AionPendingStateImplBenchmark {
                 .append(String.format("%,d", TimeUnit.NANOSECONDS.toMillis(duration)))
                 .append(" milliseconds (")
                 .append(String.format("%,d", duration))
-                .append(" nanoseconds) ");
+                .append(" nanoseconds)");
             if (count < durations.size()) {
                 builder.append(", ");
             }
-            if ((count % 5 == 0) && (count < durations.size())) {
+            if ((count % 4 == 0) && (count < durations.size())) {
                 builder.append("\n\t\t");
             }
             count++;
         }
 
-        return builder.append("]").toString();
+        return builder.append(" ]").toString();
     }
 
     /**
@@ -1184,6 +1222,8 @@ public class AionPendingStateImplBenchmark {
                 return "getPeersBestBlk13() with few peers";
             case GET_PEERS_BEST_MANY:
                 return "getPeersBestBlk13() with many peers";
+            case WARMUP:
+                return "warmup phase";
             default: return "";
         }
     }
@@ -1220,12 +1260,14 @@ public class AionPendingStateImplBenchmark {
      * Displays the records.
      */
     private void printRecords() {
-        for (BenchmarkCondition condition : orderOfCalls) {
-            List<Long> times = records.get(condition);
-            System.out.print("\n\n" + condition);
-            printMaxDuration(times);
-            printMinDuration(times);
-            printAverageDuration(times);
+        for (Entry<BenchmarkCondition, List<Long>> entry : records.entrySet()) {
+            List<Long> times = entry.getValue();
+            System.out.println("\n\n" + entry.getKey());
+            printMaxOf(times);
+            printMinOf(times);
+            printAverageOf(times);
+            printMeanOf(times);
+            printStandardDeviationOf(times);
             System.out.printf("\n\t\t%s", durationsToString(times));
         }
     }
@@ -1351,6 +1393,14 @@ public class AionPendingStateImplBenchmark {
 
         CallBuilder add(BenchmarkCondition call) {
             this.calls.add(call);
+            return this;
+        }
+
+        CallBuilder repeatLastCallNumTimes(int timesToRepeat) {
+            BenchmarkCondition lastCall = this.calls.get(this.calls.size() - 1);
+            for (int i = 0; i < timesToRepeat; i++) {
+                this.calls.add(lastCall);
+            }
             return this;
         }
 

@@ -92,7 +92,7 @@ public abstract class AbstractRepository<
     protected IByteArrayKeyValueDatabase stateDatabase;
     protected IByteArrayKeyValueDatabase stateArchiveDatabase;
     protected IByteArrayKeyValueDatabase txPoolDatabase;
-    protected IByteArrayKeyValueDatabase pendingTxCacheDatabase;
+    public IByteArrayKeyValueDatabase pendingTxCacheDatabase;
 
     protected Collection<IByteArrayKeyValueDatabase> databaseGroup;
 
