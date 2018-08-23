@@ -435,7 +435,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      */
     public int getPendingTxSize() {
         return isSeed ? 0 : this.txPool.size();
-    }
+    } // thread-safe
 
     /**
      * Returns a list of all the pending transactions.
@@ -444,7 +444,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      */
     @Override
     public synchronized List<AionTransaction> getPendingTransactions() {
-        return isSeed ? new ArrayList<>() : this.txPool.snapshot();
+        return isSeed ? new ArrayList<>() : this.txPool.snapshot(); //thread-safe
 
     }
 
@@ -454,6 +454,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * @return The best block.
      */
     public synchronized AionBlock getBestBlock() {
+        //thread-safe
         best.set(blockchain.getBestBlock());
         return best.get();
     }
@@ -461,13 +462,23 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     /**
      * TODO: when we removed libNc, timers were not introduced yet, we must rework the model that
      * libAion uses to work with timers
+     *
+     * This method is thread-safe under the assumption that the input tx is not being modified by
+     * other threads while this method is running.
      */
     @Override
     public synchronized List<AionTransaction> addPendingTransaction(AionTransaction tx) {
-
+        //thread-safe
         return addPendingTransactions(Collections.singletonList(tx));
     }
 
+    /**
+     * This method is thread-safe under the assumption that multiple threads are not modifying the
+     * input transactions while this method is executing.
+     *
+     * @param transactions
+     * @return
+     */
     @Override
     public synchronized List<AionTransaction> addPendingTransactions(
         List<AionTransaction> transactions) {
@@ -475,7 +486,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         //FIXME: looks like with some refactorings we can remove sync keyword on method and it will
         //FIXME: only be needed as sync'd blocks in 1 or 2 places inside this method.
         if ((isSeed || !closeToNetworkBest) && !loadPendingTx) {
-            return seedProcess(transactions);                           //TODO: seems thread-safe
+            return seedProcess(transactions);   // is thread-safe
         } else {
             List<AionTransaction> newPending = new ArrayList<>();
             List<AionTransaction> newLargeNonceTx = new ArrayList<>();
@@ -487,6 +498,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 int cmp = txNonce.compareTo(bestPSNonce);
 
                 if (cmp > 0) { // may be able to get this if-block unsync'd
+                    // Could use a sync block here, pull out to own method, used below also
                     if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {      //TODO: try sync this method - necessary?
                         newLargeNonceTx.add(tx);
                         addToTxCache(tx);                                   //TODO: try sync this method - necessary?
@@ -504,6 +516,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 } else if (cmp == 0) {
                     if (txPool.size() > MAX_VALIDATED_PENDING_TXS) {
 
+                        // see above
                         if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {      // see above.
                             newLargeNonceTx.add(tx);
                             addToTxCache(tx);                                   // see above.
@@ -615,11 +628,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * Broadcasts each valid transaction in transactions and returns the list of all such valid and
      * broadcasted transactions.
      *
+     * This method is thread-safe.
+     *
      * @param transactions A list of transactions to process.
      * @return The list of all valid and broadcasted transactions.
      */
     public List<AionTransaction> seedProcess(List<AionTransaction> transactions) {
-        //TODO: looks like this method is thread-safe -- inspect to ensure
         List<AionTransaction> newTx = new ArrayList<>();
         for (AionTransaction tx : transactions) {
             if (TXValidator.isValid(tx)) {
@@ -637,14 +651,28 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return newTx;
     }
 
+    /**
+     * This method is fully thread-safe.
+     *
+     * @param txNonce
+     * @param from
+     * @return
+     */
     public boolean inPool(BigInteger txNonce, Address from) {
-        //TODO: thread-safe from what I can tell
         return (this.txPool.bestPoolNonce(from).compareTo(txNonce) > -1);
     }
 
+    /**
+     * This method is thread-safe under the assumption that the input objects are not being modified
+     * while this method is running.
+     *
+     * @param txReceipt
+     * @param state
+     * @param block
+     */
     public void fireTxUpdate(AionTxReceipt txReceipt, PendingTransactionState state,
         IAionBlock block) {
-        //TODO: thread-safe so long as we can trust our input objects
+
         if (LOGGER_TX.isTraceEnabled()) {
             LOGGER_TX.trace(String
                 .format("PendingTransactionUpdate: (Tot: %3s) %12s : %s %8s %s [%s]",
@@ -667,6 +695,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     /**
      * Executes pending tx on the latest best block Fires pending state update
      *
+     * This method can become thread-safe with some concurrent data structures.
+     *
      * @param tx transaction come from API or P2P
      * @param txNonce nonce of the transaction.
      * @return True if transaction gets NEW_PENDING state, False if DROPPED
@@ -676,48 +706,48 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         //FIXME: may need to have a sync block in 1 or 2 places.
         if (!TXValidator.isValid(tx)) {         // this method is thread-safe
             LOGGER_TX.error("invalid Tx [{}]", tx.toString());
-            fireDroppedTx(tx, "INVALID_TX");    // seems thread-safe
+            fireDroppedTx(tx, "INVALID_TX");    // thread-safe
             return false;
         }
 
-        if (inValidTxNrgPrice(tx)) {        // seems thread-safe
+        if (inValidTxNrgPrice(tx)) {        // thread-safe
             LOGGER_TX.error("invalid Tx Nrg price [{}]", tx.toString());
-            fireDroppedTx(tx, "INVALID_TX_NRG_PRICE");  // see above
+            fireDroppedTx(tx, "INVALID_TX_NRG_PRICE");  // thread-safe
             return false;
         }
 
         AionTxExecSummary txSum;
-        boolean ip = inPool(txNonce, tx.getFrom());     // seems thread-safe
+        boolean ip = inPool(txNonce, tx.getFrom());     // thread-safe
         if (ip) {
             // check energy usage
-            AionTransaction poolTx = txPool.getPoolTx(tx.getFrom(), txNonce);   // method is sync'd but hold ref carefully
+            AionTransaction poolTx = txPool.getPoolTx(tx.getFrom(), txNonce);   // thread-safe
             if (poolTx == null) {
                 LOGGER_TX.error("addPendingTransactionImpl no same tx nonce in the pool {}",
                     tx.toString());
-                fireDroppedTx(tx, "REPAYTX_POOL_EXCEPTION");    // see above
+                fireDroppedTx(tx, "REPAYTX_POOL_EXCEPTION");    // thread-safe
                 return false;
             } else {
-                long price = (poolTx.getNrgPrice() << 1);   // thread-safe? how does the rlp call behave?
-                if (price > 0 && price <= tx.getNrgPrice()) {
-                    txSum = executeTx(tx, true);
+                long price = (poolTx.getNrgPrice() << 1);   // comes w/ thread safety risk of AionTx
+                if (price > 0 && price <= tx.getNrgPrice()) {   // same
+                    txSum = executeTx(tx, true);    // thread-safe
                 } else {
-                    fireDroppedTx(tx, "REPAYTX_LOWPRICE");
+                    fireDroppedTx(tx, "REPAYTX_LOWPRICE");  // thread-safe
                     return false;
                 }
             }
         } else {
-            txSum = executeTx(tx, false);           // should be thread-safe
+            txSum = executeTx(tx, false);           // thread-safe
         }
 
-        if (txSum.isRejected()) {   // only we hold this ref, all good
+        if (txSum.isRejected()) {
             if (LOGGER_TX.isTraceEnabled()) {
                 LOGGER_TX.trace("addPendingTransactionImpl tx is rejected due to: {}",
                     txSum.getReceipt().getError());
             }
-            fireTxUpdate(txSum.getReceipt(), PendingTransactionState.DROPPED, best.get());  // should be safe
+            fireTxUpdate(txSum.getReceipt(), PendingTransactionState.DROPPED, best.get());  // safe
             return false;
         } else {
-            tx.setNrgConsume(txSum.getReceipt().getEnergyUsed());   // modifies tx; safe only if we can trust this input
+            tx.setNrgConsume(txSum.getReceipt().getEnergyUsed());
 
             if (LOGGER_TX.isTraceEnabled()) {
                 LOGGER_TX.trace("addPendingTransactionImpl validTx {}", tx.toString());
@@ -734,23 +764,35 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                     if (poolBackUp) {
                         backupPendingPoolRemove.add(tx.getHash().clone());  // need to sync this set
                     }
-                    fireTxUpdate(rp, PendingTransactionState.DROPPED, best.get());  // see above
+                    fireTxUpdate(rp, PendingTransactionState.DROPPED, best.get());  // safe
                 }
 
-                fireTxUpdate(txSum.getReceipt(), PendingTransactionState.NEW_PENDING, best.get());  // see above
+                fireTxUpdate(txSum.getReceipt(), PendingTransactionState.NEW_PENDING, best.get()); // safe
             }
 
             return true;
         }
     }
 
+    /**
+     * This method is thread-safe under the assumption that tx is not being modified while this
+     * method is running.
+     *
+     * @param tx
+     * @return
+     */
     public boolean inValidTxNrgPrice(AionTransaction tx) {
-        //TODO: should be thread-safe; better if we can finalize the nrg fields of tx
         return tx.getNrgPrice() < NRGPRICE_MIN || tx.getNrgPrice() > NRGPRICE_MAX;
     }
 
+    /**
+     * This method is thread-safe under the assumption that tx is not being modified while this
+     * method is running.
+     *
+     * @param tx
+     * @param error
+     */
     public void fireDroppedTx(AionTransaction tx, String error) {
-        //TODO: thread-safe so long as we can trust our inputs
         if (LOGGER_TX.isErrorEnabled()) {
             LOGGER_TX.error("Tx dropped {} [{}]", error, tx.toString());
         }
@@ -761,8 +803,15 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         fireTxUpdate(rp, PendingTransactionState.DROPPED, best.get());
     }
 
+    /**
+     * This method is thread-safe under the assumption that tx is not being modified while this
+     * method is running.
+     *
+     * @param tx
+     * @param error
+     * @return
+     */
     public AionTxReceipt createDroppedReceipt(AionTransaction tx, String error) {
-        //TODO: thread-safe if we can trust our inputs
         AionTxReceipt txReceipt = new AionTxReceipt();
         txReceipt.setTransaction(tx);
         txReceipt.setError(error);
@@ -1050,6 +1099,14 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return rtn;
     }
 
+    /**
+     * This method is thread-safe under the assumption that tx is not modified while this method is
+     * executing.
+     *
+     * @param tx
+     * @param inPool
+     * @return
+     */
     public AionTxExecSummary executeTx(AionTransaction tx, boolean inPool) {
         //TODO: should be thread-safe
         IAionBlock bestBlk = best.get();
@@ -1068,9 +1125,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return txExe.execute();
     }
 
+    /**
+     * This method is thread-safe.
+     * @param addr
+     * @return
+     */
     @Override
     public synchronized BigInteger bestPendingStateNonce(Address addr) {
-        //TODO: thread-safe
         return isSeed ? BigInteger.ZERO : this.pendingState.getNonce(addr);
     }
 

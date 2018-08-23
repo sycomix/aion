@@ -61,8 +61,8 @@ public class AionPendingStateImplBenchmark {
     private static final int FEW_REQUESTS = 300;
     private static final int AVG_REQUESTS = 10_000;
     private static final int MANY_REQUESTS = 100_000;
-    private static final int DEFAULT_NUM_THREADS = 50;
-    private static final int DEFAULT_NUM_REQUESTS = 500;
+    private static final int DEFAULT_NUM_THREADS = 2;
+    private static final int DEFAULT_NUM_REQUESTS = 10_000;
     private static final int FEW_TXS = 20;
     private static final int MANY_TXS = 150;
     private static final int AVG_DATA_SIZE = 2_500;
@@ -180,10 +180,9 @@ public class AionPendingStateImplBenchmark {
     private void getCustomCallOrder() {
         orderOfCalls = new CallBuilder()
             .add(new BenchmarkCondition(Event.WARMUP))
-            .add(new BenchmarkCondition(Event.ADD_MANY_TXS_LARGE_DATA,
+            .add(new BenchmarkCondition(Event.ADD_TX_LARGE_DATA,
                 new CodePathBuilder()
-                    .add(CodePath.BUFFER_ENABLED)
-                    .add(CodePath.IS_BACKUP)
+                    .add(CodePath.IS_SEED)
                     .add(CodePath.IS_CLOSE_TO_NETWORK_BEST)
                     .build()))
             .build();
@@ -196,14 +195,14 @@ public class AionPendingStateImplBenchmark {
     @Test
     public void testComputes() {
         List<Long> durations = new ArrayList<>();
-        durations.add(38013986119L);
-        durations.add(38704920994L);
-        durations.add(38942018669L);
-        durations.add(38451143719L);
-        durations.add(37803079563L);
-        durations.add(38250405194L);
-//        durations.add(38013986119L);
-//        durations.add(38013986119L);
+        durations.add(38382287208L);
+        durations.add(1130838012L);
+        durations.add(1115450787L);
+        durations.add(1116435798L);
+        durations.add(1185764438L);
+        durations.add(1171942690L);
+        durations.add(1138449720L);
+//        durations.add(38260792287L);
 //        durations.add(38013986119L);
 //        durations.add(38013986119L);
         printMinOf(durations);
@@ -1058,7 +1057,7 @@ public class AionPendingStateImplBenchmark {
         Collections.sort(durations);
         long meanDuration = durations.get(Math.floorDiv(durations.size(), 2));
         System.out.printf(
-            "\n\t\tMean duration: %s milliseconds (%s nanoseconds)",
+            "\n\t\tMean duration: %,d milliseconds (%,d nanoseconds)",
             TimeUnit.NANOSECONDS.toMillis(meanDuration),
             meanDuration);
     }
