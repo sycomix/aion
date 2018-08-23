@@ -64,7 +64,7 @@ public class AionPendingStateImplBenchmark {
     private static final int DEFAULT_NUM_THREADS = 50;
     private static final int DEFAULT_NUM_REQUESTS = 500;
     private static final int FEW_TXS = 20;
-    private static final int MANY_TXS = 1_500;
+    private static final int MANY_TXS = 150;
     private static final int AVG_DATA_SIZE = 2_500;
     private static final int LARGE_DATA_SIZE = 50_000;
     private static final int AVG_BLOCK_HEIGHT = 10_000;
@@ -156,9 +156,13 @@ public class AionPendingStateImplBenchmark {
     public void setup() {
         records = new HashMap<>();
         orderOfCalls = new ArrayList<>();
-        AionBlockchainImpl.inst().setEventManager(new EventMgrA0(new Properties())); //TODO: is this correct setup?
+        AionBlockchainImpl.inst().setEventManager(new EventMgrA0(new Properties()));
     }
 
+    /**
+     * This is the method that is called to perform the benchmarking.
+     * Each benchmark test is defined in the getCustomCallOrder() method below.
+     */
     @Test
     public void testBenchmarking() throws InterruptedException {
         makeCall(new BenchmarkCondition(Event.INST));
@@ -176,7 +180,7 @@ public class AionPendingStateImplBenchmark {
     private void getCustomCallOrder() {
         orderOfCalls = new CallBuilder()
             .add(new BenchmarkCondition(Event.WARMUP))
-            .add(new BenchmarkCondition(Event.ADD_FEW_TXS_LARGE_DATA,
+            .add(new BenchmarkCondition(Event.ADD_MANY_TXS_LARGE_DATA,
                 new CodePathBuilder()
                     .add(CodePath.BUFFER_ENABLED)
                     .add(CodePath.IS_BACKUP)
@@ -185,6 +189,10 @@ public class AionPendingStateImplBenchmark {
             .build();
     }
 
+    /**
+     * Used for convenient fetching of some basic statistics. The idea is to add a new entry to the
+     * list for each amount of time a test took and get the stats over the whole list.
+     */
     @Test
     public void testComputes() {
         List<Long> durations = new ArrayList<>();
