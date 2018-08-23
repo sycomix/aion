@@ -53,7 +53,7 @@ public class AionPendingStateImplBenchmark {
     private static Map<BenchmarkCondition, List<Long>> records;
     private static List<BenchmarkCondition> orderOfCalls;
     private static Map<Integer, Event> singleTransactionEvents;
-    private static AionPendingStateImpl pendingState;
+    private static AionPendingStateImpl pendingState = null;
 
     // parameters for tuning.
     private static final int FEW_THREADS = 2;
@@ -62,7 +62,7 @@ public class AionPendingStateImplBenchmark {
     private static final int AVG_REQUESTS = 10_000;
     private static final int MANY_REQUESTS = 100_000;
     private static final int DEFAULT_NUM_THREADS = 50;
-    private static final int DEFAULT_NUM_REQUESTS = 100_000;
+    private static final int DEFAULT_NUM_REQUESTS = 500;
     private static final int FEW_TXS = 20;
     private static final int MANY_TXS = 1_500;
     private static final int AVG_DATA_SIZE = 2_500;
@@ -139,7 +139,7 @@ public class AionPendingStateImplBenchmark {
      * enum to force a call down a specific code path.
      */
     private enum CodePath {
-        IS_SEED, IS_BACKUP, BUFFER_ENABLED
+        IS_SEED, IS_BACKUP, BUFFER_ENABLED, IS_CLOSE_TO_NETWORK_BEST
     }
 
     static {
@@ -160,7 +160,7 @@ public class AionPendingStateImplBenchmark {
     }
 
     @Test
-    public void testRandomizedBenchmarking() throws InterruptedException {
+    public void testBenchmarking() throws InterruptedException {
         makeCall(new BenchmarkCondition(Event.INST));
         setupEmptyBlockchain();
         getCustomCallOrder();
@@ -176,9 +176,33 @@ public class AionPendingStateImplBenchmark {
     private void getCustomCallOrder() {
         orderOfCalls = new CallBuilder()
             .add(new BenchmarkCondition(Event.WARMUP))
-            .add(new BenchmarkCondition(Event.ADD_TX_AVG_DATA))
-            .repeatLastCallNumTimes(5)
+            .add(new BenchmarkCondition(Event.ADD_FEW_TXS_LARGE_DATA,
+                new CodePathBuilder()
+                    .add(CodePath.BUFFER_ENABLED)
+                    .add(CodePath.IS_BACKUP)
+                    .add(CodePath.IS_CLOSE_TO_NETWORK_BEST)
+                    .build()))
             .build();
+    }
+
+    @Test
+    public void testComputes() {
+        List<Long> durations = new ArrayList<>();
+        durations.add(38013986119L);
+        durations.add(38704920994L);
+        durations.add(38942018669L);
+        durations.add(38451143719L);
+        durations.add(37803079563L);
+        durations.add(38250405194L);
+//        durations.add(38013986119L);
+//        durations.add(38013986119L);
+//        durations.add(38013986119L);
+//        durations.add(38013986119L);
+        printMinOf(durations);
+        printMaxOf(durations);
+        printMeanOf(durations);
+        printAverageOf(durations);
+        printStandardDeviationOf(durations);
     }
 
     //<----------------------------METHODS FOR PERFORMANCE RECORDING------------------------------->
@@ -402,6 +426,9 @@ public class AionPendingStateImplBenchmark {
         CfgAion.inst().getConsensus().seed = false;
         CfgAion.inst().getTx().buffer = false;
         CfgAion.inst().getTx().poolBackup = false;
+        if (pendingState != null) {
+            pendingState.closeToNetworkBest = false;
+        }
 
         // enable only what we want to be set for this round.
         for (CodePath path : paths) {
@@ -414,6 +441,9 @@ public class AionPendingStateImplBenchmark {
                     break;
                 case IS_BACKUP:
                     CfgAion.inst().getTx().poolBackup = true;
+                    break;
+                case IS_CLOSE_TO_NETWORK_BEST:
+                    pendingState.closeToNetworkBest = true;
                     break;
             }
         }
