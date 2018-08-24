@@ -448,13 +448,17 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     }
 
+    //TODO: inspect -- if we have completely disjoint methods, methods that can safely run in parallel
+    //TODO: then it may be better to use separate locks/monitors for these methods so that they can run concurrently.
+
     /**
      * Returns the current best block in the blockchain.
      *
      * @return The best block.
      */
     public synchronized AionBlock getBestBlock() {
-        //thread-safe
+        //TODO: getBestBlock just passes references - this is atomic in Java, should be thread-safe
+        //TODO: already without the sync keyword.
         best.set(blockchain.getBestBlock());
         return best.get();
     }
@@ -468,7 +472,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      */
     @Override
     public synchronized List<AionTransaction> addPendingTransaction(AionTransaction tx) {
-        //thread-safe
+        //TODO: remove the sync keyword here, the method call in here is sync'd.
         return addPendingTransactions(Collections.singletonList(tx));
     }
 
@@ -491,6 +495,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             List<AionTransaction> newPending = new ArrayList<>();
             List<AionTransaction> newLargeNonceTx = new ArrayList<>();
 
+            //TODO: really need to monitor performance for locking inside/outside of the for-loop
             for (AionTransaction tx : transactions) {
                 BigInteger txNonce = tx.getNonceBI();
                 BigInteger bestPSNonce = bestPendingStateNonce(tx.getFrom());   // this call is sync'd
@@ -498,10 +503,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 int cmp = txNonce.compareTo(bestPSNonce);
 
                 if (cmp > 0) { // may be able to get this if-block unsync'd
-                    //TODO: Could use a sync block here, pull out to own method, used below also
-                    if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {      //TODO: try sync this method - necessary?
+                    //TODO: if PendingTxCache is safe then we don't need to lock over the loop.
+                    //TODO: this needs to be measured pretty thoroughly with multiple threads calling
+                    //TODO: this method as well as accessing PendingTxCache (do we have any ideas of traffic flow here?)
+                    if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {      //TODO: measure performance of syncing the underlying LRU map
                         newLargeNonceTx.add(tx);
-                        addToTxCache(tx);                                   //TODO: try sync this method - necessary?
+                        addToTxCache(tx);                                   //TODO: measure performance of syncing the underlying LRU map
 
                         if (poolBackUp) {
                             backupPendingCacheAdd.put(tx.getHash(), tx.getEncoded());   //TODO: use concurrent map
@@ -705,8 +712,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * @return True if transaction gets NEW_PENDING state, False if DROPPED
      */
     public boolean addPendingTransactionImpl(final AionTransaction tx, BigInteger txNonce) {
-        //FIXME: the final keyword is a bit misleading for tx, we do modify it in this method
-        //FIXME: may need to have a sync block in 1 or 2 places.
+        //TODO: measure performance cost of sync'ing this method as opposed to its calling method.
+        //TODO: If multiple calling methods then this needs to be sync'd.
         if (!TXValidator.isValid(tx)) {         // this method is thread-safe
             LOGGER_TX.error("invalid Tx [{}]", tx.toString());
             fireDroppedTx(tx, "INVALID_TX");    // thread-safe
@@ -825,12 +832,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     /**
      * Returns the first block that is an ancestor of both b1 and b2.
      *
+     * This method is thread-safe.
+     *
      * @param b1 A block.
      * @param b2 A block.
      * @return The first common ancestor of b1 and b2.
      */
     public IAionBlock findCommonAncestor(IAionBlock b1, IAionBlock b2) {
-        //TODO: the blockchain should be thread-safe... check
         while (!b1.isEqual(b2)) {
             if (b1.getNumber() >= b2.getNumber()) {
                 b1 = blockchain.getBlockByHash(b1.getParentHash());
@@ -850,7 +858,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     @Override
     public synchronized void processBest(AionBlock newBlock, List receipts) {
-        //TODO: may be possible to get a synchronized block to do the work, much more unsafe stuff in here though
+        //TODO: with the PendingTxCache using a sync'd LRU map this method can lose its sync keyword. Test.
         if (isSeed) {
             // seed mode doesn't need to update the pendingState
             return;
@@ -860,7 +868,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
             // need to switch the state to another fork
 
-            IAionBlock commonAncestor = findCommonAncestor(best.get(), newBlock);   // see method
+            IAionBlock commonAncestor = findCommonAncestor(best.get(), newBlock);   // safe
 
             if (LOGGER_TX.isDebugEnabled()) {
                 LOGGER_TX.debug(
@@ -870,20 +878,20 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             }
 
             // first return back the transactions from forked blocks
-            IAionBlock rollback = best.get();
+            IAionBlock rollback = best.get();   // safe
             while (!rollback.isEqual(commonAncestor)) {
                 if (LOGGER_TX.isDebugEnabled()) {
                     LOGGER_TX.debug("Rollback: {}", rollback.getShortDescr());
                 }
-                List<AionTransaction> atl = rollback.getTransactionsList(); // not thread-safe?
+                List<AionTransaction> atl = rollback.getTransactionsList(); // safe as long as no one else modifies this.
                 if (!atl.isEmpty()) {
-                    this.txPool.add(atl);
+                    this.txPool.add(atl);   // might be safe - should be
                 }
-                rollback = blockchain.getBlockByHash(rollback.getParentHash()); // should be thread-safe
+                rollback = blockchain.getBlockByHash(rollback.getParentHash()); // safe
             }
 
             // rollback the state snapshot to the ancestor
-            pendingState = repository.getSnapshotTo(commonAncestor.getStateRoot()).startTracking(); // not safe?
+            pendingState = repository.getSnapshotTo(commonAncestor.getStateRoot()).startTracking(); // safe
 
             // next process blocks from new fork
             IAionBlock main = newBlock;
@@ -894,22 +902,22 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 }
 
                 mainFork.add(main);
-                main = blockchain.getBlockByHash(main.getParentHash()); // should be safe?
+                main = blockchain.getBlockByHash(main.getParentHash()); // safe
             }
 
             // processing blocks from ancestor to new block
             for (int i = mainFork.size() - 1; i >= 0; i--) {
-                processBestInternal(mainFork.get(i), null);
+                processBestInternal(mainFork.get(i), null); //TODO: depends on PendingTxCache
             }
         } else {
             if (LOGGER_TX.isDebugEnabled()) {
                 LOGGER_TX.debug("PendingStateImpl.processBest: " + newBlock.getShortDescr());
             }
             //noinspection unchecked
-            processBestInternal(newBlock, receipts);        // potentially safe, prob not.
+            processBestInternal(newBlock, receipts);        //TODO: depends on PendingTxCache
         }
 
-        best.set(newBlock);
+        best.set(newBlock); // safe
 
         closeToNetworkBest = best.get().getNumber() + 128 >= getPeersBestBlk13();   // safe
 
@@ -920,9 +928,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
         updateState(best.get());    // safe
 
-        txPool.updateBlkNrgLimit(best.get().getNrgLimit());
+        txPool.updateBlkNrgLimit(best.get().getNrgLimit()); // safe
 
-        flushCachePendingTx();  // potential to be safe; may be hard
+        flushCachePendingTx();  //TODO: depends on PendingTxCache
 
         List<IEvent> events = new ArrayList<>();
         events.add(new EventTx(EventTx.CALLBACK.PENDINGTXSTATECHANGE0));
@@ -931,7 +939,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             events.add(new EventTx(EventTx.CALLBACK.TXBACKUP0));
         }
 
-        this.evtMgr.newEvents(events);
+        this.evtMgr.newEvents(events);  // safe
 
         // This is for debug purpose, do not use in the regular kernel running.
         if (this.dumpPool) {
@@ -940,8 +948,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     }
 
     public void flushCachePendingTx() {
-        //TODO: method has potential to not need syncing, maybe not possible though
-        Set<Address> cacheTxAccount = this.pendingTxCache.getCacheTxAccount();  // can use thread-safe obj?
+        //TODO: need to test using a sync'd LRU map in PendingTxCache, then this method does not
+        //TODO: require syncing.
+        Set<Address> cacheTxAccount = this.pendingTxCache.getCacheTxAccount();  // test
 
         if (cacheTxAccount.isEmpty()) {
             return;
@@ -957,7 +966,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             nonceMap.put(addr, bestPendingStateNonce(addr));    // thread-safe
         }
 
-        List<AionTransaction> newPendingTx = this.pendingTxCache.flush(nonceMap);   // not fully safe
+        List<AionTransaction> newPendingTx = this.pendingTxCache.flush(nonceMap);   // test
 
         if (LOGGER_TX.isDebugEnabled()) {
             LOGGER_TX
@@ -966,27 +975,36 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         }
 
         if (!newPendingTx.isEmpty()) {
-            addPendingTransactions(newPendingTx);   // should be safe
+            addPendingTransactions(newPendingTx);   // safe
         }
     }
 
+    /**
+     * May not necessarily be thread-safe; has to undergo the PendingTxCache tests before decision
+     * to make this thread-safe.
+     *
+     * @param block
+     * @param receipts
+     */
     public void processBestInternal(IAionBlock block, List<AionTxReceipt> receipts) {
-        //TODO: thread-safety dependent on these methods -- potentially safe.
+        //TODO: needs thread-safety testing.
         clearPending(block, receipts);
 
         clearOutdated(block.getNumber());
     }
 
     public void clearOutdated(final long blockNumber) {
-        //TODO: good potential to not need syncing.
+        //TODO: not thread-safe, may be possible to make thread-safe. May be worth trying some syncs
+        //TODO: on this method and measuring performance in the methods that use it, with the syncs
+        //TODO: removed in those methods.
         List<AionTransaction> outdated = new ArrayList<>();
 
         final long timeout = this.txPool.getOutDateTime();          // safe
-        for (AionTransaction tx : this.txPool.getOutdatedList()) {  // not thread-safe technically.
+        for (AionTransaction tx : this.txPool.getOutdatedList()) {  // not safe, would need to make the list safe inside.
             outdated.add(tx);
 
             if (poolBackUp) {
-                backupPendingPoolRemove.add(tx.getHash().clone());  // make thread-safe
+                backupPendingPoolRemove.add(tx.getHash().clone());  // use a thread-safe map
             }
             // @Jay
             // TODO : considering add new state - TIMEOUT
@@ -1008,8 +1026,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     @SuppressWarnings("unchecked")
     public void clearPending(IAionBlock block, List<AionTxReceipt> receipts) {
-
-        if (block.getTransactionsList() != null) {
+        //TODO: thread-safe if we can trust input is not modified during execution.
+        if (block.getTransactionsList() != null) {  // safe if no one modifies block
             if (LOGGER_TX.isDebugEnabled()) {
                 LOGGER_TX.debug("clearPending block#[{}] tx#[{}]", block.getNumber(),
                     block.getTransactionsList().size());
@@ -1019,7 +1037,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             int cnt = 0;
             for (AionTransaction tx : block.getTransactionsList()) {
                 accountNonce
-                    .computeIfAbsent(tx.getFrom(), k -> this.repository.getNonce(tx.getFrom()));
+                    .computeIfAbsent(tx.getFrom(), k -> this.repository.getNonce(tx.getFrom()));    // safe
 
                 if (LOGGER_TX.isTraceEnabled()) {
                     LOGGER_TX.trace("Clear pending transaction, addr: {} hash: {}",
@@ -1031,23 +1049,30 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 if (receipts != null) {
                     receipt = receipts.get(cnt);
                 } else {
-                    AionTxInfo info = getTransactionInfo(tx.getHash(), block.getHash());
+                    AionTxInfo info = getTransactionInfo(tx.getHash(), block.getHash());    // safe
                     receipt = info.getReceipt();
                 }
 
                 if (poolBackUp) {
-                    backupPendingPoolRemove.add(tx.getHash().clone());
+                    backupPendingPoolRemove.add(tx.getHash().clone());  // use thread-safe set?
                 }
-                fireTxUpdate(receipt, PendingTransactionState.INCLUDED, block);
+                fireTxUpdate(receipt, PendingTransactionState.INCLUDED, block); // safe
                 cnt++;
             }
 
             if (!accountNonce.isEmpty()) {
-                this.txPool.remove(accountNonce);
+                this.txPool.remove(accountNonce);   // safe
             }
         }
     }
 
+    /**
+     * Thread-safe.
+     *
+     * @param txHash
+     * @param blockHash
+     * @return
+     */
     public AionTxInfo getTransactionInfo(byte[] txHash, byte[] blockHash) {
         AionTxInfo info = transactionStore.get(txHash, blockHash);
         AionTransaction tx = blockchain.getBlockByHash(info.getBlockHash()).getTransactionsList()
@@ -1058,11 +1083,11 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     @SuppressWarnings("UnusedReturnValue")
     public List<AionTransaction> updateState(IAionBlock block) {
-
+        //TODO: can be made thread-safe easily using a better data structure.
         pendingState = repository.startTracking();
 
         processTxBuffer();
-        List<AionTransaction> pendingTxl = this.txPool.snapshotAll();
+        List<AionTransaction> pendingTxl = this.txPool.snapshotAll();   // safe
         List<AionTransaction> rtn = new ArrayList<>();
         if (LOGGER_TX.isInfoEnabled()) {
             LOGGER_TX.info("updateState - snapshotAll tx[{}]", pendingTxl.size());
@@ -1072,7 +1097,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 LOGGER_TX.trace("updateState - loop: " + tx.toString());
             }
 
-            AionTxExecSummary txSum = executeTx(tx, false);
+            AionTxExecSummary txSum = executeTx(tx, false); // safe
             AionTxReceipt receipt = txSum.getReceipt();
             receipt.setTransaction(tx);
 
@@ -1080,14 +1105,14 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 if (LOGGER_TX.isDebugEnabled()) {
                     LOGGER_TX.debug("Invalid transaction in txpool: {}", tx);
                 }
-                txPool.remove(Collections.singletonList(tx));
+                txPool.remove(Collections.singletonList(tx));   // safe
 
                 if (poolBackUp) {
-                    backupPendingPoolRemove.add(tx.getHash().clone());
+                    backupPendingPoolRemove.add(tx.getHash().clone());  // use thread-safe map
                 }
-                fireTxUpdate(receipt, PendingTransactionState.DROPPED, block);
+                fireTxUpdate(receipt, PendingTransactionState.DROPPED, block);  // safe
             } else {
-                fireTxUpdate(receipt, PendingTransactionState.PENDING, block);
+                fireTxUpdate(receipt, PendingTransactionState.PENDING, block);  // safe
                 rtn.add(tx);
             }
         }
@@ -1112,7 +1137,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * @return
      */
     public AionTxExecSummary executeTx(AionTransaction tx, boolean inPool) {
-        //TODO: should be thread-safe
+        //TODO: should be thread-safe, check
         IAionBlock bestBlk = best.get();
         if (LOGGER_TX.isTraceEnabled()) {
             LOGGER_TX.trace("executeTx: {}", Hex.toHexString(tx.getHash()));
@@ -1150,10 +1175,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     }
 
     public void addToTxCache(AionTransaction tx) {
+        //TODO: experiment with using a sync'd LRU map in PendingTxCache
         this.pendingTxCache.addCacheTx(tx);
     }
 
     public boolean isInTxCache(Address addr, BigInteger nonce) {
+        //TODO: experiment with using a sync'd LRU map in PendingTxCache
         return this.pendingTxCache.isInCache(addr, nonce);
     }
 
@@ -1236,6 +1263,11 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         }
     }
 
+    /**
+     * This method is thread-safe.
+     *
+     * @return
+     */
     public long getPeersBestBlk13() {
         //TODO: this method is thread safe.
         if (this.p2pMgr == null) {
