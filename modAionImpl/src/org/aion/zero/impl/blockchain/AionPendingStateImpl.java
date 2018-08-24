@@ -498,7 +498,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 int cmp = txNonce.compareTo(bestPSNonce);
 
                 if (cmp > 0) { // may be able to get this if-block unsync'd
-                    // Could use a sync block here, pull out to own method, used below also
+                    //TODO: Could use a sync block here, pull out to own method, used below also
                     if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {      //TODO: try sync this method - necessary?
                         newLargeNonceTx.add(tx);
                         addToTxCache(tx);                                   //TODO: try sync this method - necessary?
@@ -558,7 +558,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                     }
 
                     do {
-                        if (addPendingTransactionImpl(tx, txNonce)) {   //TODO: inspect; may have to sync here
+                        if (addPendingTransactionImpl(tx, txNonce)) {   //TODO: sync'ing that method is better, less costly; then this is safe
                             newPending.add(tx);
 
                             if (poolBackUp) {
@@ -575,13 +575,14 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
                         txNonce = txNonce.add(BigInteger.ONE);
                     } while (cache != null &&
-                        (tx = cache.get(txNonce)) != null &&
+                        (tx = cache.get(txNonce)) != null &&    // not thread-safe & this is hard to protect
                         (limit-- > 0) &&                      // decrements after evaluation - intended??
                         (txBuffer == null ? txPool.size() : txPool.size() + txBuffer.size())
                             < MAX_VALIDATED_PENDING_TXS);
-                } else if (bestRepoNonce(tx.getFrom()).compareTo(txNonce) < 1) {    //TODO: sync this method?
+                } else if (bestRepoNonce(tx.getFrom()).compareTo(txNonce) < 1) {    // safe
+                    //TODO: this else-if-block can be unsynced.
                     // repay Tx
-                    if (addPendingTransactionImpl(tx, txNonce)) {   // see above
+                    if (addPendingTransactionImpl(tx, txNonce)) {   // we can make this method sync
                         newPending.add(tx);
 
                         if (poolBackUp) {   // how does a variable like this change throughout lifetime?
@@ -590,6 +591,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                     }
                 }
             }
+
+            //TODO: everything below is thread-safe and needs no syncing.
 
             if (LOGGER_TX.isTraceEnabled()) {
                 LOGGER_TX.trace(
@@ -600,20 +603,20 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             if (!newPending.isEmpty()) {
                 IEvent evtRecv = new EventTx(EventTx.CALLBACK.PENDINGTXRECEIVED0);
                 evtRecv.setFuncArgs(Collections.singletonList(newPending));
-                this.evtMgr.newEvent(evtRecv);  // seems to be thread-safe? hard to tell - inspect
+                this.evtMgr.newEvent(evtRecv);  // safe
 
                 IEvent evtChange = new EventTx(EventTx.CALLBACK.PENDINGTXSTATECHANGE0);
-                this.evtMgr.newEvent(evtChange);    // see previous
+                this.evtMgr.newEvent(evtChange);    // safe
             }
 
             if (!loadPendingTx) {
                 if (bufferEnable) {
                     if (!newLargeNonceTx.isEmpty()) {
-                        AionImpl.inst().broadcastTransactions(newLargeNonceTx); // seems thread-safe
+                        AionImpl.inst().broadcastTransactions(newLargeNonceTx); // safe
                     }
                 } else {
                     if (!newPending.isEmpty() || !newLargeNonceTx.isEmpty()) {
-                        AionImpl.inst().broadcastTransactions(                  // seems thread-safe
+                        AionImpl.inst().broadcastTransactions(                  // safe
                             Stream.concat(newPending.stream(), newLargeNonceTx.stream())
                                 .collect(Collectors.toList()));
                     }
@@ -727,8 +730,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                 fireDroppedTx(tx, "REPAYTX_POOL_EXCEPTION");    // thread-safe
                 return false;
             } else {
-                long price = (poolTx.getNrgPrice() << 1);   // comes w/ thread safety risk of AionTx
-                if (price > 0 && price <= tx.getNrgPrice()) {   // same
+                long price = (poolTx.getNrgPrice() << 1);   // thread-safe
+                if (price > 0 && price <= tx.getNrgPrice()) {   // safe
                     txSum = executeTx(tx, true);    // thread-safe
                 } else {
                     fireDroppedTx(tx, "REPAYTX_LOWPRICE");  // thread-safe
@@ -739,30 +742,31 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             txSum = executeTx(tx, false);           // thread-safe
         }
 
-        if (txSum.isRejected()) {
+        if (txSum.isRejected()) {   // safe
             if (LOGGER_TX.isTraceEnabled()) {
                 LOGGER_TX.trace("addPendingTransactionImpl tx is rejected due to: {}",
-                    txSum.getReceipt().getError());
+                    txSum.getReceipt().getError()); // safe
             }
             fireTxUpdate(txSum.getReceipt(), PendingTransactionState.DROPPED, best.get());  // safe
             return false;
         } else {
-            tx.setNrgConsume(txSum.getReceipt().getEnergyUsed());
+            tx.setNrgConsume(txSum.getReceipt().getEnergyUsed());   // safe
 
             if (LOGGER_TX.isTraceEnabled()) {
                 LOGGER_TX.trace("addPendingTransactionImpl validTx {}", tx.toString());
             }
 
             if (bufferEnable) {
-                txBuffer.add(txSum);    // this method is sync'd
+                txBuffer.add(txSum);    // safe
             } else {
+                //TODO: if anything, only this else-block needs to be sync'd
                 AionTransaction rtn = this.txPool.add(tx);  //TODO: may need to be sync'd
                 if (rtn != null && !rtn.equals(tx)) {
                     AionTxReceipt rp = new AionTxReceipt();
                     rp.setTransaction(rtn);
 
                     if (poolBackUp) {
-                        backupPendingPoolRemove.add(tx.getHash().clone());  // need to sync this set
+                        backupPendingPoolRemove.add(tx.getHash().clone());  //TODO: use sync'd DS
                     }
                     fireTxUpdate(rp, PendingTransactionState.DROPPED, best.get());  // safe
                 }
@@ -1135,6 +1139,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         return isSeed ? BigInteger.ZERO : this.pendingState.getNonce(addr);
     }
 
+    /**
+     * This method is thread-safe.
+     *
+     * @param addr
+     * @return
+     */
     public BigInteger bestRepoNonce(Address addr) {
         return this.repository.getNonce(addr);
     }
