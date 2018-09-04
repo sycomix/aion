@@ -14,5 +14,3 @@ docker build -t aion-core:$VERSION ../. $BUILD_ARGS
 rm -rf aion/
 
 cd ..
-
-

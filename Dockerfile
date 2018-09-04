@@ -37,8 +37,16 @@ RUN if [ "${DEV_BUILD}" = "true" ]; then rm -rf jdk-10.0.1; fi
 
 WORKDIR /opt/aion
 
+RUN mkdir -p keystore
+
 COPY ./override-config.py .
 COPY ./create-coinbase.sh .
 COPY ./aion-docker.sh .
+
+# ADD ./test_env/keystore .
+COPY ./test_env/keystore/* ./keystore
+
+# expose the necessary ports to host
+EXPOSE 8545
 
 CMD [ "/bin/bash", "-c", "./aion-docker.sh" ]
