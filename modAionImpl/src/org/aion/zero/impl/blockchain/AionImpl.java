@@ -29,6 +29,7 @@ import org.aion.base.db.IRepositoryCache;
 import org.aion.base.type.Address;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.base.util.ByteUtil;
+import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
 import org.aion.equihash.EquihashMiner;
 import org.aion.log.AionLoggerFactory;
@@ -59,6 +60,7 @@ public class AionImpl implements IAionChain {
     private static final Logger LOG_GEN = AionLoggerFactory.getLogger(LogEnum.GEN.toString());
     private static final Logger LOG_TX = AionLoggerFactory.getLogger(LogEnum.TX.toString());
     private static final Logger LOG_VM = AionLoggerFactory.getLogger(LogEnum.VM.toString());
+    private static final ECKey STATIC_KEY = ECKeyFac.inst().fromPrivate(new byte[64]);
 
     public AionHub aionHub;
 
@@ -142,29 +144,14 @@ public class AionImpl implements IAionChain {
     }
 
     public long estimateTxNrg(AionTransaction tx, IAionBlock block) {
-
-        if (tx.getSignature() == null) {
-            tx.sign(ECKeyFac.inst().fromPrivate(new byte[64]));
-        }
-
-        IRepositoryCache repository = aionHub.getRepository().getSnapshotTo(block.getStateRoot()).startTracking();
-
-        try {
-            TransactionExecutor executor = new TransactionExecutor(tx, block, repository, true, LOG_VM);
-            executor.setExecutorProvider(AionExecutorProvider.getInstance());
-            return executor.execute().getReceipt().getEnergyUsed();
-        } finally {
-            repository.rollback();
-        }
+        AionTxReceipt receipt = callConstant(tx, block);
+        return receipt.getEnergyUsed();
     }
 
-    /**
-     * TODO: pretty sure we can just use a static key, verify and implement
-     */
     @Override
     public AionTxReceipt callConstant(AionTransaction tx, IAionBlock block) {
         if (tx.getSignature() == null) {
-            tx.sign(ECKeyFac.inst().fromPrivate(new byte[64]));
+            tx.sign(STATIC_KEY);
         }
 
         IRepositoryCache repository = aionHub.getRepository().getSnapshotTo(block.getStateRoot()).startTracking();
@@ -173,6 +160,9 @@ public class AionImpl implements IAionChain {
             TransactionExecutor executor = new TransactionExecutor(tx, block, repository, true, LOG_VM);
             executor.setExecutorProvider(AionExecutorProvider.getInstance());
             return executor.execute().getReceipt();
+        } catch (Exception ex) {
+            LOG_VM.error("VM execute exception!", ex);
+            return new AionTxReceipt();
         } finally {
             repository.rollback();
         }

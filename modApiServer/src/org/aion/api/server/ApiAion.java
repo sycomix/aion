@@ -447,9 +447,16 @@ public abstract class ApiAion extends Api {
     }
 
     protected byte[] doCall(ArgTxCall _params) {
+
+        Address from = _params.getFrom();
+        if (from.equals(Address.EMPTY_ADDRESS())) {
+            from = Address.ZERO_ADDRESS();
+        }
+
         AionTransaction tx =
                 new AionTransaction(
                         _params.getNonce().toByteArray(),
+                        from,
                         _params.getTo(),
                         _params.getValue().toByteArray(),
                         _params.getData(),
@@ -461,7 +468,13 @@ public abstract class ApiAion extends Api {
     }
 
     protected long estimateNrg(ArgTxCall params) {
-        AionTransaction tx = new AionTransaction(params.getNonce().toByteArray(), params.getFrom(), params.getTo(),
+
+        Address from = params.getFrom();
+        if (from.equals(Address.EMPTY_ADDRESS())) {
+            from = Address.ZERO_ADDRESS();
+        }
+
+        AionTransaction tx = new AionTransaction(params.getNonce().toByteArray(), from, params.getTo(),
                 params.getValue().toByteArray(), params.getData(), params.getNrg(), params.getNrgPrice());
         AionTxReceipt receipt = this.ac.callConstant(tx, this.ac.getAionHub().getBlockchain().getBestBlock());
         return receipt.getEnergyUsed();
