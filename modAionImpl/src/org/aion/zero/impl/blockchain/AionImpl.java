@@ -336,4 +336,13 @@ public class AionImpl implements IAionChain {
             return Optional.empty();
         return Optional.of(new ByteArrayWrapper(code));
     }
+
+    /**
+     * Returns the transaction collector.
+     *
+     * @return the transaction collector.
+     */
+    public TxCollector getCollector() {
+        return this.collector;
+    }
 }

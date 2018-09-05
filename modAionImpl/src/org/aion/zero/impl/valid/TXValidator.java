@@ -47,6 +47,22 @@ public class TXValidator {
 
     private static final Map<ByteArrayWrapper, Boolean> cache = Collections.synchronizedMap(new LRUMap<>(128 * 1024));
 
+    /**
+     * Returns true if and only if:
+     *   1. The transaction nonce is not null and is no larger than a DataWord.
+     *   2. The transaction timestamp is not null and is no larger than a Long.
+     *   3. The transaction value is not null and is no larger than a DataWord.
+     *   4. The transaction data is not null.
+     *   5. The transaction energy limit is within the expected bounds.
+     *   6. The transaction energy price is a non-negative integer that can be represented by Long.
+     *   7. The transaction raw hash is not null and is exactly 32 bytes long.
+     *   8. The transaction signature is not null and is a valid verifiable signature.
+     *
+     * Otherwise returns false.
+     *
+     * @param tx The transaction to verify.
+     * @return true only if tx is a valid transaction.
+     */
     public static boolean isValid(AionTransaction tx) {
         Boolean valid = cache.get(ByteArrayWrapper.wrap(tx.getHash()));
         if (valid != null) {
@@ -62,6 +78,22 @@ public class TXValidator {
         return cache.get(hash) != null;
     }
 
+    /**
+     * Returns true if and only if:
+     *   1. The transaction nonce is not null and is no larger than a DataWord.
+     *   2. The transaction timestamp is not null and is no larger than a Long.
+     *   3. The transaction value is not null and is no larger than a DataWord.
+     *   4. The transaction data is not null.
+     *   5. The transaction energy limit is within the expected bounds.
+     *   6. The transaction energy price is a non-negative integer that can be represented by Long.
+     *   7. The transaction raw hash is not null and is exactly 32 bytes long.
+     *   8. The transaction signature is not null and is a valid verifiable signature.
+     *
+     * Otherwise returns false.
+     *
+     * @param tx The transaction to verify.
+     * @return true only if tx is a valid transaction.
+     */
     public static boolean isValid0(AionTransaction tx) {
         byte[] check = tx.getNonce();
         if (check == null || check.length > DataWord.BYTES) {

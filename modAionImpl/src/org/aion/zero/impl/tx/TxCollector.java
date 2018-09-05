@@ -2,6 +2,7 @@ package org.aion.zero.impl.tx;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -132,5 +133,14 @@ public class TxCollector {
         if (System.currentTimeMillis() - this.lastBroadcast.get() < maxDelay) return;
 
         broadcastTx();
+    }
+
+    /**
+     * Returns a queue of all the collected transactions.
+     *
+     * @return a queue of all the collected transactions.
+     */
+    public Queue<AionTransaction> getCollectedTransactions() {
+        return this.transactionQueue;
     }
 }

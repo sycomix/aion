@@ -150,6 +150,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     private static long NRGPRICE_MIN = 10_000_000_000L;  // 10 PLAT  (10 * 10 ^ -9 AION)
     private static long NRGPRICE_MAX = 9_000_000_000_000_000_000L;  //  9 AION
 
+    private boolean isTestInstance = false;
+
     class TxBuffTask implements Runnable {
 
         @Override
@@ -290,7 +292,9 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
     public static AionPendingStateImpl createForTesting(
             CfgAion _cfgAion, AionBlockchainImpl _blockchain, AionRepositoryImpl _repository) {
-        return initializeAionPendingState(_cfgAion, _repository, _blockchain);
+        AionPendingStateImpl impl = initializeAionPendingState(_cfgAion, _repository, _blockchain);
+        impl.isTestInstance = true;
+        return impl;
     }
 
     private AionPendingStateImpl(CfgAion _cfgAion, AionRepositoryImpl _repository) {
@@ -432,6 +436,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     /**
      * TODO: when we removed libNc, timers were not introduced yet, we must rework the model that
      * libAion uses to work with timers
+     *
+     * TODO: is 'this node' correct in description?
+     * If the class is currently not loading pending transactions and either this node is a seed
+     * node or it is not close to the network best (no more than 128 blocks behind the current
+     * network best) then tx will be immediately broadcast iff it is a valid transaction.
+     *
+     * Otherwise, ...
      */
     @Override
     public synchronized List<AionTransaction> addPendingTransaction(AionTransaction tx) {
@@ -576,6 +587,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
         }
     }
 
+    /**
+     * Broadcasts each valid transaction in transactions and returns the list of all such valid and
+     * broadcasted transactions.
+     *
+     * @param transactions The list of transactions to validate and potentially broadcast.
+     * @return the list of all valid and broadcasted transactions of the original list.
+     */
     private List<AionTransaction> seedProcess(List<AionTransaction> transactions) {
         List<AionTransaction> newTx = new ArrayList<>();
         for (AionTransaction tx : transactions) {
@@ -1229,5 +1247,49 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
     @Override
     public void updateBest() {
         getBestBlock();
+    }
+
+    /**
+     * This method is for testing! If this AionPendingStateImpl is not for testing this method does
+     * nothing!
+     *
+     * Sets this AionPendingStateImpl to consider the node as a seed node.
+     *
+     * @param isSeed The isSeed value to set.
+     */
+    public synchronized void setIsSeed(boolean isSeed) {
+        if (this.isTestInstance) {
+            this.isSeed = isSeed;
+        }
+    }
+
+    /**
+     * This method is for testing! If this AionPendingStateImpl is not for testing this method does
+     * nothing!
+     *
+     * Sets this AionPendingStateImpl to consider the node as close to the network best.
+     *
+     * @param isClose The closeToNetworkBest value to set.
+     */
+    public synchronized void setIsCloseToNetworkBest(boolean isClose) {
+        if (this.isTestInstance) {
+            this.closeToNetworkBest = isClose;
+        }
+    }
+
+    /**
+     * This method is for testing! If this AionPendingStateImpl is not for testing this method does
+     * nothing!
+     *
+     * Sets this AionPendingStateImpl so that it regards itself as being in the process of loading
+     * pending transactions. Note: this method does not actually make the class load any
+     * transactions.
+     *
+     * @param isLoading The loadPendingTx value to set.
+     */
+    public synchronized void setIsLoadingPendingTx(boolean isLoading) {
+        if (this.isTestInstance) {
+            this.loadPendingTx = isLoading;
+        }
     }
 }

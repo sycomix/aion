@@ -419,6 +419,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
         }
 
         for (int i = 0; i < transactions.size(); i++) {
+            //FIXME
             txsState.update(RLP.encodeInt(i), transactions.get(i).getEncoded());
         }
         return txsState.getRootHash();
@@ -951,6 +952,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
         if (!block.isGenesis()) {
             isValid = isValid(block.getHeader());
+            //FIXME
 
             // Sanity checks
             String trieHash = toHexString(block.getTxTrieRoot());
