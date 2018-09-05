@@ -1,5 +1,6 @@
 package org.aion.zero.impl.blockchain.contracts;
 
+import org.aion.base.type.Address;
 import org.aion.base.util.ByteUtil;
 import org.aion.crypto.ECKey;
 import org.aion.crypto.ECKeyFac;
@@ -8,7 +9,9 @@ import org.aion.crypto.ISignature;
 import org.aion.mcf.core.ImportResult;
 import org.aion.zero.impl.StandaloneBlockchain;
 import org.aion.zero.impl.types.AionBlock;
+import org.aion.zero.impl.types.AionTxInfo;
 import org.aion.zero.types.AionTransaction;
+import org.aion.zero.types.AionTxReceipt;
 import org.junit.Test;
 
 import java.math.BigInteger;
@@ -86,10 +89,10 @@ public class EdVerifyIntegrationTest {
         AionTransaction verifyTx =
                 new AionTransaction(
                         BigInteger.ONE.toByteArray(),
-                        null,
+                        deployTx.getContractAddress(),
                         BigInteger.ZERO.toByteArray(),
                         functionCall,
-                        1_000_000L,
+                        2_000_000L,
                         1L);
 
         verifyTx.sign(sender);
@@ -99,10 +102,81 @@ public class EdVerifyIntegrationTest {
 
         ImportResult result = blockchain.tryToConnect(block);
         assertThat(result).isEqualTo(ImportResult.IMPORTED_BEST);
+        AionTxInfo txInfo = blockchain.getTransactionInfo(verifyTx.getHash());
+        assertThat(txInfo.getReceipt().getError()).isEmpty();
+        assertThat(txInfo.getReceipt().getExecutionResult()).isEqualTo(signer.getAddress());
     }
 
-
+    @Test
     public void testVerifyFailingSignature() {
+        String inputMessage = "hello world!";
 
+        // first input, message hash
+        byte[] inputMessageHash = HashUtil.h256(inputMessage.getBytes());
+
+        ECKey signer = ECKeyFac.inst().create();
+        ISignature signature = signer.sign(inputMessageHash);
+
+        // second input, public key
+        byte[] inputPublicKey = signer.getPubKey();
+
+        ByteBuffer wrapped = ByteBuffer.wrap(signature.getSignature());
+        wrapped.rewind();
+
+        // input 3
+        byte[] sigChunk1 = new byte[32];
+
+        // input 4
+        byte[] sigChunk2 = new byte[32];
+
+        // reverse the ordering of the chunks to break signature
+        wrapped.get(sigChunk2);
+        wrapped.get(sigChunk1);
+
+        StandaloneBlockchain.Bundle bundle = new StandaloneBlockchain.Builder()
+                .withDefaultAccounts()
+                .withValidatorConfiguration("simple")
+                .build();
+
+        StandaloneBlockchain blockchain = bundle.bc;
+        ECKey sender = bundle.privateKeys.get(0);
+
+        // deployment transaction
+        AionTransaction deployTx =
+                new AionTransaction(
+                        BigInteger.ZERO.toByteArray(),
+                        null,
+                        BigInteger.ZERO.toByteArray(),
+                        edValidateBytecode,
+                        1_000_000L,
+                        1L);
+
+        deployTx.sign(sender);
+
+        AionBlock block = blockchain.createNewBlock(blockchain.getBestBlock(), Collections.singletonList(deployTx), true);
+        assertThat(block.getTransactionsList().get(0)).isEqualTo(deployTx);
+        blockchain.tryToConnect(block);
+
+        // deploy status correct, now test functionality
+        byte[] functionCall = ByteUtil.merge(abi_validateHash, inputMessageHash, inputPublicKey, sigChunk1, sigChunk2);
+        AionTransaction verifyTx =
+                new AionTransaction(
+                        BigInteger.ONE.toByteArray(),
+                        deployTx.getContractAddress(),
+                        BigInteger.ZERO.toByteArray(),
+                        functionCall,
+                        2_000_000L,
+                        1L);
+
+        verifyTx.sign(sender);
+
+        block = blockchain.createNewBlock(blockchain.getBestBlock(), Collections.singletonList(verifyTx), true);
+        assertThat(block.getTransactionsList().get(0)).isEqualTo(verifyTx);
+
+        ImportResult result = blockchain.tryToConnect(block);
+        assertThat(result).isEqualTo(ImportResult.IMPORTED_BEST);
+        AionTxInfo txInfo = blockchain.getTransactionInfo(verifyTx.getHash());
+        assertThat(txInfo.getReceipt().getError()).isEmpty();
+        assertThat(txInfo.getReceipt().getExecutionResult()).isEqualTo(Address.ZERO_ADDRESS().toBytes());
     }
 }
