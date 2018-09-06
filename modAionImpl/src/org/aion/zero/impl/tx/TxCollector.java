@@ -140,7 +140,18 @@ public class TxCollector {
      *
      * @return a queue of all the collected transactions.
      */
-    public Queue<AionTransaction> getCollectedTransactions() {
+    public synchronized Queue<AionTransaction> getCollectedTransactions() {
         return this.transactionQueue;
     }
+
+    /**
+     * Returns the maximum number of bytes the broadcast buffer can hold before it flushes all
+     * broadcasts. Note: these bytes are the bytes that comprise the encoded transactions.
+     *
+     * @return the maximum number of bytes the broadcast buffer holds before flushing.
+     */
+    public synchronized int getMaxTxBufferSize() {
+        return this.maxTxBufferSize;
+    }
+
 }

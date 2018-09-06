@@ -342,7 +342,7 @@ public class AionImpl implements IAionChain {
      *
      * @return the transaction collector.
      */
-    public TxCollector getCollector() {
+    public synchronized TxCollector getCollector() {
         return this.collector;
     }
 }

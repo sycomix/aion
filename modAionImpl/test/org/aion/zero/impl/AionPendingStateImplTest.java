@@ -1,11 +1,15 @@
 package org.aion.zero.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
@@ -23,6 +27,7 @@ import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.db.AionRepositoryImpl;
 import org.aion.zero.impl.tx.TxCollector;
 import org.aion.zero.impl.types.AionBlock;
+import org.aion.zero.impl.valid.TXValidator;
 import org.aion.zero.types.AionTransaction;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,6 +37,7 @@ import org.junit.Test;
 
 public class AionPendingStateImplTest {
     private AionPendingStateImpl pendingStateImpl;
+    private static int broadcastBufferSize = 0;
 
     @Before
     public void setup() {
@@ -48,6 +54,7 @@ public class AionPendingStateImplTest {
 
     @After
     public void tearDown() {
+        drainBroadcastBuffer();
         pendingStateImpl = null;
     }
 
@@ -64,10 +71,12 @@ public class AionPendingStateImplTest {
 
         // Valid tx for contract creation.
         AionTransaction tx = makeValidTransaction(true);
+        broadcastBufferSize += tx.getEncoded().length;
         doAndCheckTransactionBroadcast(tx, true);
 
         // Valid tx not for contract creation.
         tx = makeValidTransaction(false);
+        broadcastBufferSize += tx.getEncoded().length;
         doAndCheckTransactionBroadcast(tx, true);
     }
 
@@ -77,7 +86,6 @@ public class AionPendingStateImplTest {
      *
      * In the case that the signature is missing from the tx, we expect a NullPointerException to be
      * thrown by the ByteArrayWrapper that tries to wrap the transaction in TXValidator.
-     * TODO: verify this NPE is actually what we want here.
      */
     @Test
     public void testAddPendingTxNotLoadingIsSeedNotValidTx() {
@@ -126,10 +134,12 @@ public class AionPendingStateImplTest {
 
         // Valid tx for contract creation.
         AionTransaction tx = makeValidTransaction(true);
+        broadcastBufferSize += tx.getEncoded().length;
         doAndCheckTransactionBroadcast(tx, true);
 
         // Valid tx not for contract creation.
         tx = makeValidTransaction(false);
+        broadcastBufferSize += tx.getEncoded().length;
         doAndCheckTransactionBroadcast(tx, true);
     }
 
@@ -139,7 +149,6 @@ public class AionPendingStateImplTest {
      *
      * In the case that the signature is missing from the tx, we expect a NullPointerException to be
      * thrown by the ByteArrayWrapper that tries to wrap the transaction in TXValidator.
-     * TODO: verify this NPE is actually what we want here.
      */
     @Test
     public void testAddPendingTxNotLoadingNotSeedNotNetworkBestNotValidTx() {
@@ -177,6 +186,400 @@ public class AionPendingStateImplTest {
         }
     }
 
+    //---------
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledIsValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledIsValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledIsValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledIsValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledIsValidTx5() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledIsValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledIsValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledIsValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledIsValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledIsValidTx5() {
+        //TODO
+    }
+
+    //-----------
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledNotValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledNotValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledNotValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledNotValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferIsEnabledNotValidTx5() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledNotValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledNotValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledNotValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledNotValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxIsLoadingBufferNotEnabledNotValidTx5() {
+        //TODO
+    }
+
+    //------------
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledIsValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledIsValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledIsValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledIsValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledIsValidTx5() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledIsValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledIsValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledIsValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledIsValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledIsValidTx5() {
+        //TODO
+    }
+
+    //------------
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledNotValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledNotValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledNotValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledNotValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferIsEnabledNotValidTx5() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is larger than the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledNotValidTx1() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is equal to the best nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledNotValidTx2() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is less than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledNotValidTx3() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is equal to transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledNotValidTx4() {
+        //TODO
+    }
+
+    /**
+     * Tests:
+     *   1. transaction nonce is less than the best nonce.
+     *   2. best repo nonce is larger than transaction nonce.
+     */
+    @Test
+    public void testAddPendingTxNotLoadingNotSeedIsNetworkBestBufferNotEnabledNotValidTx5() {
+        //TODO
+    }
+
+    //-----------
+
     /**
      * Expected behaviour: for all transactions -- broadcast the transaction iff it is valid.
      * If tx is broadcast it will be in the queue in the TxCollector belonging to AionImpl.
@@ -186,10 +589,12 @@ public class AionPendingStateImplTest {
         pendingStateImpl.setIsLoadingPendingTx(false);
         pendingStateImpl.setIsSeed(true);
 
-        int numTxs = 5_000;
-        Pair<List<AionTransaction>, List<Boolean>> randomTxs = makeRandomTransactions(numTxs);
+        Pair<List<AionTransaction>, List<Boolean>> randomTxs = makeRandomTransactions();
         List<AionTransaction> transactions = randomTxs.getLeft();
         List<Boolean> txValidities = randomTxs.getRight();
+        assertEquals(transactions.size(), txValidities.size());
+
+        int numTxs = transactions.size();
         for (int i = 0; i < numTxs; i++) {
             if (transactions.get(i).getSignature() == null) {
                 try {
@@ -210,29 +615,28 @@ public class AionPendingStateImplTest {
      */
     @Test
     public void testAddPendingTxsNotLoadingNotSeedNotNetworkBest() {
-        //TODO
-    }
+        pendingStateImpl.setIsLoadingPendingTx(false);
+        pendingStateImpl.setIsSeed(false);
+        pendingStateImpl.setIsCloseToNetworkBest(false);
 
-    @Test
-    public void testUnsignedTx() {
-        StandaloneBlockchain.Bundle bundle = (new Builder())
-            .withValidatorConfiguration("simple")
-            .withDefaultAccounts()
-            .build();
-        StandaloneBlockchain blockchain = bundle.bc;
+        Pair<List<AionTransaction>, List<Boolean>> randomTxs = makeRandomTransactions();
+        List<AionTransaction> transactions = randomTxs.getLeft();
+        List<Boolean> txValidities = randomTxs.getRight();
+        assertEquals(transactions.size(), txValidities.size());
 
-//        AionTransaction tx = makeValidTransaction(true);
-        AionTransaction tx = makeInvalidTransaction(true, InvalidParameter.SIGNATURE);
-        AionBlock block = blockchain.getBlockByNumber(0);
-//        AionBlock newBlock = blockchain.createNewBlock(block, Collections.singletonList(tx), false);
-//        ImportResult res = blockchain.tryToConnect(newBlock);
-//        System.err.println(res);
-
-        AionBlock b = new AionBlock(block.getHash(), block.getCoinbase(), block.getLogBloom(), block.getDifficulty(),
-            block.getNumber() + 1, block.getTimestamp() + 1, block.getExtraData(),
-            BigInteger.ZERO.toByteArray(), block.getReceiptsRoot(), new byte[1], new byte[1],
-            Collections.singletonList(tx), new byte[1], 0, 1_000_000);
-        blockchain.tryToConnect(b);
+        int numTxs = transactions.size();
+        for (int i = 0; i < numTxs; i++) {
+            if (transactions.get(i).getSignature() == null) {
+                try {
+                    doAndCheckTransactionBroadcast(transactions.get(i), txValidities.get(i));
+                    fail("No NullPointerException thrown.");
+                } catch (NullPointerException e) {
+                    // expected behaviour.
+                }
+            } else {
+                doAndCheckTransactionBroadcast(transactions.get(i), txValidities.get(i));
+            }
+        }
     }
 
     //<--------------------------------------DIRECT HELPERS---------------------------------------->
@@ -242,22 +646,30 @@ public class AionPendingStateImplTest {
     /**
      * Returns a Pair of two lists. The lefthand list is a list of numTxs transactions. The
      * righthand list is a list of numTxs booleans.
+     * The maximum number of transactions are returned such that the broadcast cache is never
+     * flushed -- this way we can actually see what is inside the cache.
      *
      * The following correspondence between the two lists exists:
      *   the i'th transaction is valid iff the i'th boolean is true
      *   otherwise the i'th transaction is invalid.
      *
-     * @param numTxs The number of transactions to make.
      * @return a random list of transactions and list of corresponding booleans.
      */
-    private Pair<List<AionTransaction>, List<Boolean>> makeRandomTransactions(int numTxs) {
+    private Pair<List<AionTransaction>, List<Boolean>> makeRandomTransactions() {
+        TxCollector collector = AionImpl.inst().getCollector();
         List<AionTransaction> transactions = new ArrayList<>();
         List<Boolean> txValidities = new ArrayList<>();
         Random random = new Random();
-        for (int i = 0; i < numTxs; i++) {
+
+        while (true) {
             if (random.nextBoolean()) {
-                // We make a valid transaction here.
-                transactions.add(makeValidTransaction(random.nextBoolean()));
+                // We make a valid transaction here. We break if the cache size will cause a flush.
+                AionTransaction transaction = makeValidTransaction(random.nextBoolean());
+                broadcastBufferSize += transaction.getEncoded().length;
+                if (broadcastBufferSize >= collector.getMaxTxBufferSize()) {
+                    break;
+                }
+                transactions.add(transaction);
                 txValidities.add(true);
             } else {
                 // We make an invalid transaction here.
@@ -310,10 +722,9 @@ public class AionPendingStateImplTest {
         byte[] data = (param.equals(InvalidParameter.DATA)) ? null : new byte[1];
         long timestamp = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
         long nrgPrice = (param.equals(InvalidParameter.PRICE)) ? -1 : 1;
-        long nrg = 1_000_000;
-//        long nrg = (param.equals(InvalidParameter.NRG))
-//            ? getInvalidNrgLimit(isForContract)
-//            : getValidNrgLimit(isForContract);
+        long nrg = (param.equals(InvalidParameter.NRG))
+            ? getInvalidNrgLimit(isForContract)
+            : getValidNrgLimit(isForContract);
 
         AionTransaction tx =  new AionTransaction(nonce, to, value, data, nrg, nrgPrice);
         tx.setTimeStamp(timestamp);
@@ -333,13 +744,35 @@ public class AionPendingStateImplTest {
      */
     private void doAndCheckTransactionBroadcast(AionTransaction tx, boolean isBroadcast) {
         TxCollector collector = AionImpl.inst().getCollector();
-        assertEquals(0, collector.getCollectedTransactions().size());
+        int bufferSize = collector.getCollectedTransactions().size();
         pendingStateImpl.addPendingTransaction(tx);
         if (isBroadcast) {
-            assertEquals(1, collector.getCollectedTransactions().size());
-            assertEquals(tx, collector.getCollectedTransactions().poll());
+            assertEquals(bufferSize + 1, collector.getCollectedTransactions().size());
+            Collection<AionTransaction> txs = new LinkedList<>(collector.getCollectedTransactions());
+            assertTrue(txs.contains(tx));
         } else {
-            assertEquals(0, collector.getCollectedTransactions().size());
+            assertEquals(bufferSize, collector.getCollectedTransactions().size());
+        }
+    }
+
+    /**
+     * Drains the broadcast buffer so that once this method returns the broadcast buffer in
+     * AionImpl's TxCollector has zero transactions and its buffer size is zero.
+     */
+    private void drainBroadcastBuffer() {
+        // Strategy: add txs until the buffer flushes.
+        TxCollector collector = AionImpl.inst().getCollector();
+        while (true) {
+            AionTransaction transaction = makeValidTransaction(true);
+            broadcastBufferSize += transaction.getEncoded().length;
+            if (broadcastBufferSize >= collector.getMaxTxBufferSize()) {
+                pendingStateImpl.addPendingTransaction(transaction);
+                assertEquals(0, collector.getCollectedTransactions().size());
+                broadcastBufferSize = 0;
+                return;
+            } else {
+                pendingStateImpl.addPendingTransaction(transaction);
+            }
         }
     }
 

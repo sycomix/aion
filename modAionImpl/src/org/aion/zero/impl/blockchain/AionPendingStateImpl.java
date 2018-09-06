@@ -440,9 +440,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * TODO: is 'this node' correct in description?
      * If the class is currently not loading pending transactions and either this node is a seed
      * node or it is not close to the network best (no more than 128 blocks behind the current
-     * network best) then tx will be immediately broadcast iff it is a valid transaction.
+     * network best) then:
+     *     tx will be queued for broadcast if it is a valid transaction. If it is not a valid
+     *     transaction then this method does effectively nothing.
      *
-     * Otherwise, ...
+     * Otherwise, this method does the following:
+     *     ...
      */
     @Override
     public synchronized List<AionTransaction> addPendingTransaction(AionTransaction tx) {
@@ -591,6 +594,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
      * Broadcasts each valid transaction in transactions and returns the list of all such valid and
      * broadcasted transactions.
      *
+     * @apiNote There is no guarantee on when transactions may be broadcast; they may be cached and
+     * broadcast as a batch for performance purposes.
      * @param transactions The list of transactions to validate and potentially broadcast.
      * @return the list of all valid and broadcasted transactions of the original list.
      */
