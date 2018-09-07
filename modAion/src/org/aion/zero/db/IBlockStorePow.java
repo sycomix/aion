@@ -20,33 +20,28 @@
  *
  * Contributors:
  *     Aion foundation.
- *
  ******************************************************************************/
-package org.aion.mcf.db;
+package org.aion.zero.db;
 
-import org.aion.mcf.types.AbstractBlock;
+import java.math.BigInteger;
+
+import org.aion.base.type.IBlock;
+import org.aion.mcf.db.IBlockStoreBase;
 import org.aion.mcf.types.AbstractBlockHeader;
 
 /**
- * Abstract POW blockstore.
+ * POW BLockstore interface.
  *
  * @param <BLK>
  * @param <BH>
  */
-public abstract class AbstractPowBlockstore<BLK extends AbstractBlock<?, ?>, BH extends AbstractBlockHeader>
-        implements IBlockStorePow<BLK, BH> {
+public interface IBlockStorePow<BLK extends IBlock<?, ?>, BH extends AbstractBlockHeader>
+        extends IBlockStoreBase<BLK, BH> {
 
-    @Override
-    public byte[] getBlockHashByNumber(long blockNumber, byte[] branchBlockHash) {
-        BLK branchBlock = getBlockByHash(branchBlockHash);
-        if (branchBlock.getNumber() < blockNumber) {
-            throw new IllegalArgumentException(
-                    "Requested block number > branch hash number: " + blockNumber + " < " + branchBlock.getNumber());
-        }
-        while (branchBlock.getNumber() > blockNumber) {
-            branchBlock = getBlockByHash(branchBlock.getParentHash());
-        }
-        return branchBlock.getHash();
-    }
+    BigInteger getTotalDifficultyForHash(byte[] hash);
+
+    void saveBlock(BLK block, BigInteger cummDifficulty, boolean mainChain);
+
+    BigInteger getTotalDifficulty();
 
 }

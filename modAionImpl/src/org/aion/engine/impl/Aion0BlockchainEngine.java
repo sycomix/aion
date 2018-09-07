@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * Copyright (c) 2017-2018 Aion foundation.
  *
  *     This file is part of the aion network project.
@@ -18,14 +18,35 @@
  *     If not, see <https://www.gnu.org/licenses/>.
  *
  * Contributors:
- *     Aion foundation.
- *     
- ******************************************************************************/
+ *     Centrys Inc. <https://centrys.io>
+ */
 
-package org.aion.zero.impl.query;
+package org.aion.engine.impl;
 
-import java.util.Optional;
+import org.aion.generic.IBlockchainEngine;
+import org.aion.generic.IGenericAionChain;
+import org.aion.zero.impl.blockchain.IChainInstancePOW;
 
-public interface BlockQueryInterface {
-    Optional<Long> getInitialStartingBlockNumber();
+public class Aion0BlockchainEngine implements IBlockchainEngine {
+
+    private IChainInstancePOW blockchain;
+
+    public Aion0BlockchainEngine(IChainInstancePOW  blockchain) {
+        this.blockchain = blockchain;
+    }
+
+    @Override
+    public IGenericAionChain getAionChain() {
+        return blockchain;
+    }
+
+    @Override
+    public void start() {
+
+    }
+
+    @Override
+    public void stop() {
+
+    }
 }

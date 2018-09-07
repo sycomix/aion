@@ -19,6 +19,7 @@ module aion.zero.impl {
     requires slf4j.api;
 
     exports org.aion.equihash;
+    exports org.aion.engine.impl;
     exports org.aion.zero.impl.blockchain;
     exports org.aion.zero.impl;
     exports org.aion.zero.impl.core;
@@ -28,4 +29,5 @@ module aion.zero.impl {
     exports org.aion.zero.impl.db;
     exports org.aion.zero.impl.sync;
     exports org.aion.zero.impl.config.dynamic;
+    exports org.aion.utils;
 }

@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * Copyright (c) 2017-2018 Aion foundation.
  *
  *     This file is part of the aion network project.
@@ -18,33 +18,48 @@
  *     If not, see <https://www.gnu.org/licenses/>.
  *
  * Contributors:
- *     Aion foundation.
- *
- ******************************************************************************/
+ *     Centrys Inc. <https://centrys.io>
+ */
 
-package org.aion.mcf.blockchain;
+package org.aion.generic;
 
+import org.aion.base.db.IRepository;
 import org.aion.base.type.IBlock;
-import org.aion.base.type.IBlockIdentifier;
+import org.aion.base.type.ITransaction;
+import org.aion.evtmgr.IEventMgr;
+import org.aion.mcf.blockchain.IPendingStateInternal;
 import org.aion.mcf.core.AbstractTxInfo;
+import org.aion.mcf.core.IBlockchain;
 import org.aion.mcf.db.IBlockStoreBase;
 import org.aion.mcf.types.AbstractBlockHeader;
+import org.aion.mcf.types.AbstractTxReceipt;
+import org.aion.p2p.IP2pMgr;
 
-/**
- * Generic Chain interface.
- */
-public interface IGenericChain<BLK extends IBlock, BH extends AbstractBlockHeader> {
+public interface IGenericAionHub<
+        BLK extends IBlock<?, ?>,
+        BH extends AbstractBlockHeader,
+        TX extends ITransaction,
+        TR extends AbstractTxReceipt,
+        INFO extends AbstractTxInfo> {
+    boolean isRunning();
 
-    BLK getBlockByNumber(long number);
+    IRepository getRepository();
 
-    BLK getBlockByHash(byte[] hash);
+    IBlockchain<BLK, BH, TX, TR, INFO> getBlockchain();
 
-    IBlockStoreBase<?, ?> getBlockStore();
+    IBlockStoreBase<BLK, BH> getBlockStore();
 
-    BLK getBestBlock();
+    IPendingStateInternal<BLK, TX> getPendingState();
 
-    AbstractTxInfo getTransactionInfo(byte[] hash);
+    IEventMgr getEventMgr();
 
-    void flush();
+    IBlockPropagationHandler<BLK> getPropHandler();
 
+    void close();
+
+    //TODO: add a sync mgr
+
+    IP2pMgr getP2pMgr();
+
+    BLK getStartingBlock();
 }

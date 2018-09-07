@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * Copyright (c) 2017-2018 Aion foundation.
  *
  *     This file is part of the aion network project.
@@ -17,16 +17,16 @@
  *     along with the aion network project source files.
  *     If not, see <https://www.gnu.org/licenses/>.
  *
- *
  * Contributors:
- *     Aion foundation.
-
- ******************************************************************************/
-package org.aion.mcf.evt;
-
-/**
- * @author jin
+ *     Centrys Inc. <https://centrys.io>
  */
-public interface EvtData {
+package org.aion.mcf.consensus.strategy;
 
+import org.aion.base.type.IBlock;
+
+public interface IBlockValidatorStrategy<BLK extends IBlock> {
+    /**
+     * Validates a block
+     */
+    Boolean execute(BLK block);
 }

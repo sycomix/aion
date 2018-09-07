@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*
  * Copyright (c) 2017-2018 Aion foundation.
  *
  *     This file is part of the aion network project.
@@ -18,20 +18,16 @@
  *     If not, see <https://www.gnu.org/licenses/>.
  *
  * Contributors:
- *     Aion foundation.
- *
- ******************************************************************************/
-
-package org.aion.mcf.blockchain;
-
-import org.aion.mcf.mine.IMineRunner;
-
-/**
- * Chain instance pow interface.
+ *     Centrys Inc. <https://centrys.io>
  */
-public interface IChainInstancePOW extends IChainInstanceBase {
+package org.aion.mcf.consensus.strategy;
 
-    IPowChain<?, ?> getBlockchain();
+import org.aion.base.type.IBlock;
+import org.aion.mcf.core.ImportResult;
 
-    IMineRunner getBlockMiner();
+public interface IBlockAppenderStrategy<BLK extends IBlock> {
+    /**
+     * @return a new AionBlock
+     */
+    ImportResult execute(BLK block);
 }
