@@ -661,7 +661,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
                 parent, txs, waitUntilBlockTime, System.currentTimeMillis() / THOUSAND_MS);
     }
 
-    BlockContext createNewBlockInternal(
+    public BlockContext createNewBlockInternal(
             AionBlock parent,
             List<AionTransaction> txs,
             boolean waitUntilBlockTime,
