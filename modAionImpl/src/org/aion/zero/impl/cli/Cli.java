@@ -368,6 +368,7 @@ public class Cli {
         ECKey key = Keystore.getKey(address, password);
 
         if (key != null) {
+            System.out.println("Your public key is: 0x" + Hex.toHexString(key.getPubKey()));
             System.out.println("Your private key is: 0x" + Hex.toHexString(key.getPrivKeyBytes()));
             return true;
         } else {
