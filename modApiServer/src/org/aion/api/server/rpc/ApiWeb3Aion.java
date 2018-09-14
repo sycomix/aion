@@ -62,14 +62,17 @@ import org.aion.mcf.account.Keystore;
 import org.aion.mcf.config.*;
 import org.aion.mcf.core.AbstractTxInfo;
 import org.aion.mcf.core.AccountState;
+import org.aion.mcf.core.IBlockchain;
 import org.aion.mcf.core.ImportResult;
 import org.aion.mcf.types.AbstractTxReceipt;
 import org.aion.mcf.vm.types.DataWord;
 import org.aion.mcf.vm.types.Log;
 import org.aion.p2p.INode;
+import org.aion.zero.impl.AionBlockchainImpl;
 import org.aion.zero.impl.BlockContext;
 import org.aion.zero.impl.Version;
 import org.aion.zero.impl.blockchain.AionImpl;
+import org.aion.zero.impl.blockchain.IAionChain;
 import org.aion.zero.impl.blockchain.IChainInstancePOW;
 import org.aion.zero.impl.config.CfgAion;
 import org.aion.zero.impl.config.CfgConsensusPow;
@@ -79,6 +82,7 @@ import org.aion.zero.impl.db.AionRepositoryImpl;
 import org.aion.zero.impl.sync.PeerState;
 import org.aion.zero.impl.types.AionBlock;
 import org.aion.zero.impl.types.AionBlockSummary;
+import org.aion.zero.impl.types.AionTxInfo;
 import org.aion.zero.types.A0BlockHeader;
 import org.aion.zero.types.AionTransaction;
 import org.apache.commons.collections4.map.LRUMap;
@@ -96,7 +100,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import java.util.function.Function;
+import static java.util.stream.Collectors.toList;
 import static org.aion.base.util.ByteUtil.hexStringToBytes;
 import static org.aion.base.util.ByteUtil.toHexString;
 
@@ -104,7 +109,7 @@ import static org.aion.base.util.ByteUtil.toHexString;
  * @author chris lin, ali sharif TODO: make implementation pass all spec tests:
  *     https://github.com/ethereum/rpc-tests
  */
-@SuppressWarnings("Duplicates")
+@SuppressWarnings({"Duplicates", "WeakerAccess"})
 public class ApiWeb3Aion extends ApiAion {
 
     private final int OPS_RECENT_ENTITY_COUNT = 32;
@@ -187,6 +192,9 @@ public class ApiWeb3Aion extends ApiAion {
         */
     }
 
+    private final LoadingCache<ByteArrayWrapper, IBlock> blockCache;
+    private final static int BLOCK_CACHE_SIZE = 1000;
+
     public ApiWeb3Aion(final IGenericAionChain _ac) {
         super(_ac);
         pendingReceipts = Collections.synchronizedMap(new LRUMap<>(FLTRS_MAX, 100));
@@ -242,16 +250,23 @@ public class ApiWeb3Aion extends ApiAion {
         cacheUpdateExecutor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(1), new CacheUpdateThreadFactory());
 
+        //noinspection NullableProblems
+        blockCache = CacheBuilder.newBuilder().maximumSize(BLOCK_CACHE_SIZE).build(
+                new CacheLoader<>() {
+                    public IBlock load(ByteArrayWrapper blockHash) {
+                        LOG.debug("<rpc-server blockCache miss for "+blockHash.toString()+" >");
+                        return getBlockByHash(blockHash.getData());
+                    }
+                });
 
         MinerStats = CacheBuilder.newBuilder()
                 .maximumSize(1)
                 .refreshAfterWrite(STRATUM_CACHE_TIME_SECONDS, TimeUnit.SECONDS)
                 .build(
-                        new CacheLoader<String, MinerStatsView>() {
+                        new CacheLoader<>() {
                             public MinerStatsView load(String key) { // no checked exception
                                 Address miner = new Address(key);
-                                MinerStatsView view = new MinerStatsView(STRATUM_RECENT_BLK_COUNT, miner.toBytes()).update();
-                                return view;
+                                return new MinerStatsView(STRATUM_RECENT_BLK_COUNT, miner.toBytes()).update();
                             }
 
                             public ListenableFuture<MinerStatsView> reload(final String key, MinerStatsView prev) {
@@ -275,12 +290,12 @@ public class ApiWeb3Aion extends ApiAion {
     // Mining Pool
     // --------------------------------------------------------------------
 
-    /* Return a reference to the AIONBlock without converting values to hex
+    /* Return a reference to the IBlock without converting values to hex
      * Requied for the mining pool implementation
      */
-    private AionBlock getBlockRaw(int bn) {
+    private IBlock getBlockRaw(int bn) {
         // long bn = this.parseBnOrId(_bnOrId);
-        AionBlock nb = (AionBlock) this.ac.getBlockchain().getBlockByNumber(bn);
+        IBlock nb = this.ac.getBlockchain().getBlockByNumber(bn);
         if (nb == null) {
             if (LOG.isDebugEnabled()) LOG.debug("<get-block-raw bn={} err=not-found>", bn);
             return null;
@@ -678,6 +693,9 @@ public class ApiWeb3Aion extends ApiAion {
 
         ArgTxCall txParams = ArgTxCall.fromJSON(_tx, getNrgOracle(), getDefaultNrgLimit());
 
+        if (txParams == null)
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid transaction parameter provided");
+
         String bnOrId = "latest";
         if (!JSONObject.NULL.equals(_bnOrId))
             bnOrId = _bnOrId + "";
@@ -720,18 +738,28 @@ public class ApiWeb3Aion extends ApiAion {
     public RpcMsg eth_getBlockByHash(Object _params) {
         String _hash;
         boolean _fullTx;
-        if (_params instanceof JSONArray) {
-            _hash = ((JSONArray) _params).get(0) + "";
-            _fullTx = ((JSONArray) _params).optBoolean(1, false);
-        } else if (_params instanceof JSONObject) {
-            _hash = ((JSONObject) _params).get("block") + "";
-            _fullTx = ((JSONObject) _params).optBoolean("fullTransaction", false);
-        } else {
+        try {
+            if (_params instanceof JSONArray) {
+                _hash = ((JSONArray) _params).get(0) + "";
+                _fullTx = ((JSONArray) _params).optBoolean(1, false);
+            } else if (_params instanceof JSONObject) {
+                _hash = ((JSONObject) _params).get("block") + "";
+                _fullTx = ((JSONObject) _params).optBoolean("fullTransaction", false);
+            } else {
+                throw new Exception("Invalid input object provided");
+            }
+        } catch (Exception e) {
+            LOG.debug("Error processing json input arguments", e);
             return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
         }
 
         byte[] hash = ByteUtil.hexStringToBytes(_hash);
         IBlock block = this.ac.getBlockchain().getBlockByHash(hash);
+
+        if (block == null) {
+            LOG.debug("<get-block hash={} err=not-found>", _hash);
+            return new RpcMsg(JSONObject.NULL); // json rpc spec: 'or null when no block was found'
+        }
 
         IBlock mainBlock =
                 this.ac.getAionHub().getBlockchain().getBlockByNumber(block.getNumber());
@@ -740,24 +768,34 @@ public class ApiWeb3Aion extends ApiAion {
             return new RpcMsg(JSONObject.NULL);
         }
 
-        if (block == null) {
+        byte[] mainchainHash = this.ac.getAionHub().getBlockStore().getBlockHashByNumber(block.getNumber());
+        if (mainchainHash == null) {
             LOG.debug("<get-block hash={} err=not-found>", _hash);
             return new RpcMsg(JSONObject.NULL); // json rpc spec: 'or null when no block was found'
-        } else {
+        }
+
+        if (this.ac instanceof IChainInstancePOW) {
             return new RpcMsg(Blk.AionBlockToJson(block, getBlockTotalDifficulty(hash), _fullTx));
+        } else {
+            throw new UnsupportedOperationException();
         }
     }
 
     public RpcMsg eth_getBlockByNumber(Object _params) {
         String _bnOrId;
         boolean _fullTx;
-        if (_params instanceof JSONArray) {
-            _bnOrId = ((JSONArray) _params).get(0) + "";
-            _fullTx = ((JSONArray) _params).optBoolean(1, false);
-        } else if (_params instanceof JSONObject) {
-            _bnOrId = ((JSONObject) _params).get("block") + "";
-            _fullTx = ((JSONObject) _params).optBoolean("fullTransaction", false);
-        } else {
+        try {
+            if (_params instanceof JSONArray) {
+                _bnOrId = ((JSONArray) _params).get(0) + "";
+                _fullTx = ((JSONArray) _params).optBoolean(1, false);
+            } else if (_params instanceof JSONObject) {
+                _bnOrId = ((JSONObject) _params).get("block") + "";
+                _fullTx = ((JSONObject) _params).optBoolean("fullTransaction", false);
+            } else {
+                throw new Exception("Invalid input object provided");
+            }
+        } catch (Exception e) {
+            LOG.debug("Error processing json input arguments", e);
             return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
         }
 
@@ -771,18 +809,30 @@ public class ApiWeb3Aion extends ApiAion {
         if (nb == null) {
             LOG.debug("<get-block bn={} err=not-found>", bn);
             return new RpcMsg(JSONObject.NULL); // json rpc spec: 'or null when no block was found'
-        } else {
+        }
+
+        // add main chain block to cache (currently only used by ops_getTransactionReceipt_* functions)
+        blockCache.put(new ByteArrayWrapper(nb.getHash()), nb);
+
+        if (this.ac instanceof IChainInstancePOW) {
             return new RpcMsg(Blk.AionBlockToJson(nb, getBlockTotalDifficulty(nb.getHash()), _fullTx));
+        } else {
+            throw new UnsupportedOperationException();
         }
     }
 
     public RpcMsg eth_getTransactionByHash(Object _params) {
         String _hash;
-        if (_params instanceof JSONArray) {
-            _hash = ((JSONArray) _params).get(0) + "";
-        } else if (_params instanceof JSONObject) {
-            _hash = ((JSONObject) _params).get("transactionHash") + "";
-        } else {
+        try {
+            if (_params instanceof JSONArray) {
+                _hash = ((JSONArray) _params).get(0) + "";
+            } else if (_params instanceof JSONObject) {
+                _hash = ((JSONObject) _params).get("transactionHash") + "";
+            } else {
+                throw new Exception("Invalid input object provided");
+            }
+        } catch (Exception e) {
+            LOG.debug("Error processing json input arguments", e);
             return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
         }
 
@@ -791,8 +841,7 @@ public class ApiWeb3Aion extends ApiAion {
 
         AbstractTxInfo txInfo = this.ac.getAionHub().getBlockchain().getTransactionInfo(txHash);
         if (txInfo == null)
-            return new RpcMsg(
-                    JSONObject.NULL); // json rpc spec: 'or null when no transaction was found'
+            return new RpcMsg(JSONObject.NULL); // json rpc spec: 'or null when no transaction was found'
 
         IBlock b = this.ac.getBlockchain().getBlockByHash(txInfo.getBlockHash());
         if (b == null) return null; // this is actually an internal error
@@ -886,9 +935,7 @@ public class ApiWeb3Aion extends ApiAion {
         }
         */
 
-        if (r == null)
-            return new RpcMsg(
-                    JSONObject.NULL); // json rpc spec: 'or null when no receipt was found'
+        if (r == null) return new RpcMsg(JSONObject.NULL); // json rpc spec: 'or null when no receipt was found'
 
         return new RpcMsg(r.toJson());
     }
@@ -992,10 +1039,12 @@ public class ApiWeb3Aion extends ApiAion {
         }
 
         ArgFltr rf = ArgFltr.fromJSON(_filterObj);
+        if (rf == null)
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid filter object provided.");
 
         FltrLg filter = createFilter(rf);
         if (filter == null)
-            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid block ids provided.");
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid filter object provided.");
 
         // "install" the filter after populating historical data;
         // rationale: until the user gets the id back, the user should not expect the filter to be
@@ -1090,6 +1139,9 @@ public class ApiWeb3Aion extends ApiAion {
         }
 
         ArgFltr rf = ArgFltr.fromJSON(_filterObj);
+        if (rf == null)
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid filter object provided.");
+
         FltrLg filter = createFilter(rf);
         if (filter == null)
             return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid block ids provided.");
@@ -1932,10 +1984,8 @@ public class ApiWeb3Aion extends ApiAion {
         }
     }
 
-    // use a custom implementation to get a receipt with 2 db reads and a constant time op, as
-    // opposed to
-    // the getTransactionReceipt() in parent, which computes cumulativeNrg computatio for spec
-    // compliance
+    // use a custom implementation to get a receipt with 2 db reads and a constant time op, as opposed to
+    // the getTransactionReceipt() in parent, which computes cumulativeNrg computatio for spec compliance
     public RpcMsg ops_getTransaction(Object _params) {
         String _hash;
         if (_params instanceof JSONArray) {
@@ -2093,6 +2143,121 @@ public class ApiWeb3Aion extends ApiAion {
         }
 
         return new RpcMsg(result);
+    }
+
+    /**
+     * This function runs in ~ 30ms
+     * Is an order of magnitude slower than ops_getTransactionReceiptByTransactionAndBlockHash
+     */
+    public RpcMsg ops_getTransactionReceiptByTransactionHash(Object _params) {
+        String _transactionHash;
+        if (_params instanceof JSONArray) {
+            _transactionHash = ((JSONArray) _params).get(0) + "";
+        } else if (_params instanceof JSONObject) {
+            _transactionHash = ((JSONObject) _params).get("transactionHash") + "";
+        } else {
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
+        }
+
+        byte[] transactionHash = TypeConverter.StringHexToByteArray(_transactionHash);
+
+        if (this.ac instanceof AionBlockchainImpl) {
+            AionTxInfo info = (AionTxInfo) this.ac.getAionHub().getBlockchain().getTransactionInfo(transactionHash);
+            if (info == null) return new RpcMsg(JSONObject.NULL);
+
+            // ok to getUnchecked() since the load() implementation does not throw checked exceptions
+            AionBlock block = (AionBlock) blockCache.getUnchecked(new ByteArrayWrapper(info.getBlockHash()));
+            return new RpcMsg((new TxRecpt(block, info, 0L, true)).toJson());
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /**
+     * This function runs as fast as is possible with the on-disk data model
+     * Use this to retrieve the Transaction Receipt if you know the block hash already
+     */
+    public RpcMsg ops_getTransactionReceiptByTransactionAndBlockHash(Object _params) {
+        String _transactionHash;
+        String _blockHash;
+        if (_params instanceof JSONArray) {
+            _transactionHash = ((JSONArray) _params).get(0) + "";
+            _blockHash = ((JSONArray) _params).get(1) + "";
+        } else if (_params instanceof JSONObject) {
+            _transactionHash = ((JSONObject) _params).get("transactionHash") + "";
+            _blockHash = ((JSONObject) _params).get("blockHash") + "";
+        } else {
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
+        }
+
+        byte[] transactionHash = TypeConverter.StringHexToByteArray(_transactionHash);
+        byte[] blockHash = TypeConverter.StringHexToByteArray(_blockHash);
+
+        // cast will cause issues after the PoW refactor goes in
+        IBlockchain chain = this.ac.getAionHub().getBlockchain();
+
+        if (this.ac instanceof AionBlockchainImpl) {
+            AionTxInfo info = ((AionBlockchainImpl)chain).getTransactionInfoLite(transactionHash, blockHash);
+            if (info == null) return new RpcMsg(JSONObject.NULL);
+
+            // ok to getUnchecked() since the load() implementation does not throw checked exceptions
+            AionBlock block = (AionBlock) blockCache.getUnchecked(new ByteArrayWrapper(blockHash));
+
+            AionTransaction t = block.getTransactionsList().get(info.getIndex());
+            if (FastByteComparisons.compareTo(t.getHash(), transactionHash) != 0) {
+                LOG.error("INCONSISTENT STATE: transaction info's transaction index is wrong.");
+                return new RpcMsg(null, RpcError.INTERNAL_ERROR, "Database Error");
+            }
+            info.setTransaction(t);
+
+            return new RpcMsg((new TxRecpt(block, info, 0L, true)).toJson());
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public RpcMsg ops_getTransactionReceiptListByBlockHash(Object _params) {
+        String _blockHash;
+        if (_params instanceof JSONArray) {
+            _blockHash = ((JSONArray) _params).get(0) + "";
+        } else if (_params instanceof JSONObject) {
+            _blockHash = ((JSONObject) _params).get("blockHash") + "";
+        } else {
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
+        }
+
+        byte[] blockHash = TypeConverter.StringHexToByteArray(_blockHash);
+
+        if (blockHash.length != 32)
+            return new RpcMsg(null, RpcError.INVALID_PARAMS, "Invalid parameters");
+
+        // ok to getUnchecked() since the load() implementation does not throw checked exceptions
+        AionBlock b;
+        try {
+             b = (AionBlock) blockCache.getUnchecked(new ByteArrayWrapper(blockHash));
+        } catch (CacheLoader.InvalidCacheLoadException e) {
+            // Catch errors if send an incorrect tx hash
+            return new RpcMsg(null, RpcError.INVALID_REQUEST, "Invalid Request");
+        }
+
+        // cast will cause issues after the PoW refactor goes in
+        AionBlockchainImpl chain = (AionBlockchainImpl) this.ac.getAionHub().getBlockchain();
+
+        Function<AionTransaction, JSONObject> extractTxReceipt = t -> {
+            AionTxInfo info = chain.getTransactionInfoLite(t.getHash(), b.getHash());
+            info.setTransaction(t);
+            return((new TxRecpt(b, info, 0L, true)).toJson());
+        };
+
+        List<JSONObject> receipts;
+        // use the fork-join pool to parallelize receipt retrieval if necessary
+        int PARALLELIZE_RECEIPT_COUNT = 20;
+        if (b.getTransactionsList().size() > PARALLELIZE_RECEIPT_COUNT)
+            receipts = b.getTransactionsList().parallelStream().map(extractTxReceipt).collect(toList());
+        else
+            receipts = b.getTransactionsList().stream().map(extractTxReceipt).collect(toList());
+
+        return new RpcMsg(new JSONArray(receipts));
     }
 
     /* -------------------------------------------------------------------------
@@ -2291,7 +2456,8 @@ public class ApiWeb3Aion extends ApiAion {
             String bnStr = _blockNum + "";
             try {
                 int bnInt = Integer.decode(bnStr);
-                AionBlock block = getBlockRaw(bnInt);
+                // cast will cause issues after the PoW refactor goes in
+                AionBlock block = (AionBlock) getBlockRaw(bnInt);
                 if (block != null) {
                     A0BlockHeader header = block.getHeader();
                     obj.put("code", 0); // 0 = success
@@ -2412,6 +2578,7 @@ public class ApiWeb3Aion extends ApiAion {
 
         MinerStatsView update() {
             // get the latest head
+            // cast will cause issues after the PoW refactor goes in
             AionBlock blk = (AionBlock) getBestBlock();
 
             if (blk == null) return this;
@@ -2441,6 +2608,7 @@ public class ApiWeb3Aion extends ApiAion {
                     && itr < qSize
                     && blk.getNumber() > 2) {
 
+                // cast will cause issues after the PoW refactor goes in
                 blk = (AionBlock) getBlockByHash(blk.getParentHash());
                 tempStack.push(Map.entry(blk.getHash(), blk));
                 itr++;

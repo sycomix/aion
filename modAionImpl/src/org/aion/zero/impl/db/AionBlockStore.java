@@ -22,6 +22,7 @@
  */
 package org.aion.zero.impl.db;
 
+import java.util.Stack;
 import org.aion.base.db.IByteArrayKeyValueDatabase;
 import org.aion.base.util.ByteUtil;
 import org.aion.base.util.Hex;
@@ -62,6 +63,9 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
     private ObjectDataSource<AionBlock> blocks;
 
     private boolean checkIntegrity = true;
+
+    private Stack<IAionBlock> branchingBlk, preBranchingBlk;
+    private long branchingLevel;
 
     public AionBlockStore(IByteArrayKeyValueDatabase index, IByteArrayKeyValueDatabase blocks) {
         init(index, blocks);
@@ -439,6 +443,10 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
             // 1. First ensure that you are one the save level
             IAionBlock forkLine = forkBlock;
             if (forkBlock.getNumber() > bestBlock.getNumber()) {
+                branchingLevel = currentLevel;
+                if (branchingBlk == null) {
+                    branchingBlk = new Stack<>();
+                }
 
                 while (currentLevel > bestBlock.getNumber()) {
                     List<BlockInfo> blocks = getBlockInfoForLevel(currentLevel);
@@ -446,6 +454,9 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
                     if (blockInfo != null) {
                         blockInfo.setMainChain(true);
                         setBlockInfoForLevel(currentLevel, blocks);
+
+                        //For collecting branching blocks
+                        branchingBlk.push(getBlockByHash(blockInfo.getHash()));
                     } else {
                         LOG.error("Null block information found at " + currentLevel + " when data should exist.");
                     }
@@ -459,11 +470,18 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
 
                 while (currentLevel > forkBlock.getNumber()) {
 
+                    if (preBranchingBlk == null) {
+                        preBranchingBlk = new Stack<>();
+                    }
+
                     List<BlockInfo> blocks = getBlockInfoForLevel(currentLevel);
                     BlockInfo blockInfo = getBlockInfoForHash(blocks, bestLine.getHash());
                     if (blockInfo != null) {
                         blockInfo.setMainChain(false);
                         setBlockInfoForLevel(currentLevel, blocks);
+
+                        //For collecting prebranching blocks
+                        preBranchingBlk.push(getBlockByHash(blockInfo.getHash()));
                     } else {
                         LOG.error("Null block information found at " + currentLevel + " when data should exist.");
                     }
@@ -474,8 +492,40 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
 
             // 2. Loop back on each level until common block
             loopBackToCommonBlock(bestLine, forkLine);
+
+            logBranchingDetails();
+
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    private void logBranchingDetails() {
+        if (branchingLevel > 0 && LOG_CONS.isDebugEnabled()) {
+            LOG_CONS.debug("Branching details start: level[{}]", branchingLevel);
+
+            LOG_CONS.debug("===== Block details before branch =====");
+            while (!preBranchingBlk.empty()) {
+                IAionBlock blk = preBranchingBlk.pop();
+                LOG_CONS.debug("blk: {}", blk.toString());
+            }
+
+            LOG_CONS.debug("===== Block details after branch =====");
+            while (!branchingBlk.empty()) {
+                IAionBlock blk = branchingBlk.pop();
+                LOG_CONS.debug("blk: {}", blk.toString());
+            }
+
+            LOG_CONS.debug("Branching details end");
+            branchingLevel = 0;
+        }
+
+        if (branchingBlk != null) {
+            branchingBlk.clear();
+        }
+
+        if (preBranchingBlk != null) {
+            preBranchingBlk.clear();
         }
     }
 
@@ -491,12 +541,18 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
         }
 
         while (!bestLine.isEqual(forkLine)) {
-
             List<BlockInfo> levelBlocks = getBlockInfoForLevel(currentLevel);
             BlockInfo bestInfo = getBlockInfoForHash(levelBlocks, bestLine.getHash());
             if (bestInfo != null) {
                 bestInfo.setMainChain(false);
                 setBlockInfoForLevel(currentLevel, levelBlocks);
+
+                if (preBranchingBlk == null) {
+                    preBranchingBlk = new Stack<>();
+                }
+
+                //For collecting preBranching blocks
+                preBranchingBlk.push(getBlockByHash(bestInfo.getHash()));
             } else {
                 LOG.error("Null block information found at " + currentLevel + " when information should exist.");
             }
@@ -505,6 +561,13 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
             if (forkInfo != null) {
                 forkInfo.setMainChain(true);
                 setBlockInfoForLevel(currentLevel, levelBlocks);
+
+                if (branchingBlk == null) {
+                    branchingBlk = new Stack<>();
+                }
+
+                //For collecting branching blocks
+                branchingBlk.push(getBlockByHash(forkInfo.getHash()));
             } else {
                 LOG.error("Null block information found at " + currentLevel + " when information should exist.");
             }
@@ -515,8 +578,11 @@ public class AionBlockStore implements IBlockStorePow<AionBlock, A0BlockHeader> 
             --currentLevel;
         }
 
-        AionLoggerFactory.getLogger(LogEnum.CONS.name())
-                .info("branching: common block = {}/{}", forkLine.getNumber(), Hex.toHexString(forkLine.getHash()));
+        branchingLevel -= currentLevel;
+
+        if (LOG_CONS.isInfoEnabled()) {
+            LOG_CONS.info("branching: common block = {}/{}", forkLine.getNumber(), Hex.toHexString(forkLine.getHash()));
+        }
     }
 
     @Override
