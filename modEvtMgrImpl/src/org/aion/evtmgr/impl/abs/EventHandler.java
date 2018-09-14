@@ -19,7 +19,8 @@
  *
  * Contributors:
  *     Aion foundation.
- *     
+ *     Centrys Inc. <https://centrys.io>
+ *
  ******************************************************************************/
 
 package org.aion.evtmgr.impl.abs;
@@ -33,16 +34,23 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.aion.evtmgr.IEvent;
 import org.aion.evtmgr.IEventCallback;
+import org.aion.evtmgr.IHandler;
 import org.aion.evtmgr.impl.evt.EventDummy;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.slf4j.Logger;
 
 /**
- * @author jay
+ * @author jay, centrys-david
  *
+ * Minimal implementation of {@link IHandler} that manages the event thread of one specific type
+ * defined by {@link IHandler.TYPE}.
+ *
+ * Subclasses should extend this class, define their event thread name passed in the constructor.
+ * If necessary, subclasses may define additional handler types in {@link IHandler.TYPE}
+ * 
  */
-public abstract class AbstractHandler {
+public class EventHandler implements IHandler {
 
     protected static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.EVTMGR.toString());
 
@@ -53,7 +61,7 @@ public abstract class AbstractHandler {
     private boolean interrupted = false;
     private int handlerType;
 
-    protected Thread dispatcher = new Thread(() -> {
+    private Thread dispatcher = new Thread(() -> {
         try {
             while (!interrupt.get()) {
                 IEvent e = queue.take();
@@ -83,8 +91,9 @@ public abstract class AbstractHandler {
         }
     });
 
-    public AbstractHandler(int value) {
-        handlerType = value;
+    public EventHandler(int handlerType, String name) {
+        this.handlerType = handlerType;
+        this.dispatcher.setName(name);
     }
 
     public synchronized boolean addEvent(IEvent _evt) {
@@ -176,4 +185,6 @@ public abstract class AbstractHandler {
     public int getType() {
         return handlerType;
     }
+
+    public String getName() { return this.dispatcher.getName(); }
 }

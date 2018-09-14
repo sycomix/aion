@@ -33,9 +33,9 @@ import java.util.Properties;
 
 import static junit.framework.TestCase.assertEquals;
 
-public class AbstractEventMgrTest {
-    private Properties properties = new Properties();
-    private EventMgrA0 evtManager = new EventMgrA0(properties);
+public class EventManagerTest{
+    
+    private EventMgrA0 evtManager = new EventMgrA0();
 
     @Test
     public void testStart(){
