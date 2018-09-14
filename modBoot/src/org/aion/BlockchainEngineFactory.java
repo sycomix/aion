@@ -102,6 +102,8 @@ public class BlockchainEngineFactory {
             Consumer<RpcServerBuilder<? extends RpcServerBuilder<?>>> commonRpcConfig = (rpcBuilder) -> {
                 rpcBuilder.setUrl(rpcCfg.getIp(), rpcCfg.getPort());
                 rpcBuilder.enableEndpoints(rpcCfg.getEnabled());
+                rpcBuilder.enableMethods(rpcCfg.getEnabledMethods());
+                rpcBuilder.disableMethods(rpcCfg.getDisabledMethods());
 
                 rpcBuilder.setWorkerPoolSize(rpcCfg.getWorkerThreads());
                 rpcBuilder.setIoPoolSize(rpcCfg.getIoThreads());

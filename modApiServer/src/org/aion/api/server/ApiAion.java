@@ -603,7 +603,13 @@ public abstract class ApiAion extends Api {
         }
 
         ITransaction tx = this.ac.getTransactionFactory().createTransaction(signedTx);
-        pendingState.addPendingTransaction(tx);
+        try {
+            pendingState.addPendingTransaction(tx);
+            pendingState.addPendingTransaction(tx);
+        } catch (Exception e) {
+            LOG.error("<send-transaction exception>", e);
+            return null;
+        }
         return tx.getHash();
     }
 
