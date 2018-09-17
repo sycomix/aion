@@ -1,5 +1,6 @@
 package org.aion.api.server.rpc;
 
+import org.aion.generic.IGenericAionChain;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
 import org.aion.zero.impl.blockchain.AionImpl;
@@ -14,10 +15,25 @@ public class RpcMethods {
     private static final Logger LOG = AionLoggerFactory.getLogger(LogEnum.API.name());
     private ApiWeb3Aion api;
     private final Map<String, Map<String, RpcMethod>> groupMap;
-    private Map<String, RpcMethod> enabledEndpoints;
+    Map<String, RpcMethod> enabledEndpoints;
 
-    public RpcMethods(List<String> enabledGroups) {
-        api = new ApiWeb3Aion(AionImpl.inst());
+    /**
+     * Creates a new instance of the RpcMethods class with the intersection of the enabled groups
+     * and the explicit enabled methods inside of it.
+     * @param enabledGroups     Groups of APIs which should be enabled.
+     * @param enabledMethods    API methods to explicitly enable in addition to the ones specified by
+     *                          the enabledGroups parameter.
+     * @param disabledMethods   Methods which are explicitly disabled which will be removed from the
+     *                          combination of enabledGroups and enabledMethods.
+     */
+    public RpcMethods(
+        final IGenericAionChain aionChain,
+        final List<String> enabledGroups,
+        final List<String> enabledMethods,
+        final List<String> disabledMethods) {
+
+        //TODO: refactor THIS to pass something general!!!!
+        api = new ApiWeb3Aion(aionChain);
 
         // find a way to autogen options in config using this enum, without generating circular
         // module dependency (right now it's manual)
@@ -33,7 +49,9 @@ public class RpcMethods {
                 Map.entry("priv", priv)
         );
 
-        enabledEndpoints = composite(enabledGroups);
+        enabledEndpoints = composite(enabledGroups, enabledMethods, disabledMethods);
+
+        LOG.debug("Enabled the following apis: {}", (Object) enabledEndpoints.keySet());
     }
 
     public RpcMethod get(String name) {
@@ -44,24 +62,52 @@ public class RpcMethods {
         api.shutdown();
     }
 
-    private Map<String, RpcMethod> composite(List<String> groups) {
+    private Map<String, RpcMethod> composite(final List<String> groups,
+                                             final List<String> enabledMethods,
+                                             final List<String> disabledMethods) {
+
         Map<String, RpcMethod> composite = new HashMap<>();
 
-        // add the ping endpoint by default
+        // Add the ping endpoint by default
         composite.putAll(ping);
 
+        // Add all the methods which are defined by the groups
         for(String group : groups) {
-            Map<String, RpcMethod> g = null;
-            try {
-                g = groupMap.get(group.toLowerCase());
-            } catch (Exception e) {
-                LOG.debug("rpc-methods - unable to recognize api group name: " + group);
-                continue;
-            }
-            // ok to have overlapping method key strings (as long as they also map to the same function)
-            if (g != null)
+            Map<String, RpcMethod> g = groupMap.get(group.toLowerCase());
+            if (g == null) {
+                LOG.debug("rpc-methods - unable to recognize api group name: '{}'", group);
+            } else {
+                // ok to have overlapping method key strings (as long as they also map to the same function)
                 composite.putAll(g);
+            }
         }
+
+        // Create a map combining all the available groups
+        Map<String, RpcMethod> allMethods = new HashMap<>();
+        for (Map<String, RpcMethod> group : groupMap.values()) {
+            allMethods.putAll(group);
+        }
+
+        // Add in the explicitly listed methods
+        for (String enabledMethod : enabledMethods) {
+            if (allMethods.containsKey(enabledMethod)) {
+                composite.put(enabledMethod, allMethods.get(enabledMethod));
+            } else {
+                LOG.warn("rpc-methods - Attempted to enable unknown RPC method '{}'", enabledMethod);
+            }
+        }
+
+        // Remove the disabled methods
+        for (String disabledMethod : disabledMethods) {
+            if (composite.containsKey(disabledMethod)) {
+                // Remove the method if it was previously added to composite
+                composite.remove(disabledMethod);
+            } else if (!allMethods.containsKey(disabledMethod)) {
+                // Log a warning if this RPC method is not known
+                LOG.warn("rpc-methods - Attempted to disable unknown RPC method '{}'", disabledMethod);
+            }
+        }
+
 
         return composite;
     }

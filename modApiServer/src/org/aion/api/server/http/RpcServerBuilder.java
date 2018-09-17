@@ -1,5 +1,7 @@
 package org.aion.api.server.http;
 
+import org.aion.generic.IGenericAionChain;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,11 +20,14 @@ public abstract class RpcServerBuilder<T extends RpcServerBuilder<T>> {
     // but I personally like to avoid the visual clutter of accessors
     String hostName;
     Integer port;
+    protected IGenericAionChain aionChain;
 
     boolean corsEnabled = false;
     String corsOrigin = "*";
 
     List<String> enabledEndpoints = new ArrayList<>();
+    List<String> enabledMethods = new ArrayList<>();
+    List<String> disabledMethods = new ArrayList<>();
 
     boolean sslEnabled = false;
     String sslCertPath;
@@ -61,6 +66,18 @@ public abstract class RpcServerBuilder<T extends RpcServerBuilder<T>> {
         return self();
     }
 
+    public T enableMethods(List<String> enabledMethods) {
+        // Empty List or null are valid input here.
+        this.enabledMethods = Objects.requireNonNullElse(enabledMethods, new ArrayList<>());
+        return self();
+    }
+
+    public T disableMethods(List<String> disabledMethods) {
+        // Empty List or null are valid input here.
+        this.disabledMethods = Objects.requireNonNullElse(disabledMethods, new ArrayList<>());
+        return self();
+    }
+
     public T enableSsl(String sslCertName, char[] sslCertPass) {
         this.sslEnabled = true;
         this.sslCertPath = Objects.requireNonNull(sslCertName);
@@ -86,6 +103,11 @@ public abstract class RpcServerBuilder<T extends RpcServerBuilder<T>> {
 
     public T setStuckThreadDetectorEnabled(boolean x) {
         this.stuckThreadDetectorEnabled = x;
+        return self();
+    }
+
+    public T withAionChain(IGenericAionChain aionChain) {
+        this.aionChain = aionChain;
         return self();
     }
 

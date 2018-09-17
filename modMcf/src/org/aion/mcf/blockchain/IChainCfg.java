@@ -26,7 +26,6 @@ package org.aion.mcf.blockchain;
 
 import org.aion.base.type.IBlock;
 import org.aion.base.type.ITransaction;
-import org.aion.mcf.core.IDifficultyCalculator;
 import org.aion.mcf.core.IRewardsCalculator;
 import org.aion.mcf.valid.BlockHeaderValidator;
 import org.aion.mcf.valid.ParentBlockHeaderValidator;
@@ -42,11 +41,9 @@ public interface IChainCfg<Blk extends IBlock<?, ?>, Tx extends ITransaction> {
 
     IBlockConstants getCommonConstants();
 
-    IDifficultyCalculator getDifficultyCalculator();
-
-    IRewardsCalculator getRewardsCalculator();
-
     BlockHeaderValidator createBlockHeaderValidator();
 
     ParentBlockHeaderValidator createParentHeaderValidator();
+
+    IRewardsCalculator getRewardsCalculator();
 }

@@ -1,5 +1,6 @@
 package org.aion.api.server.rpc;
 
+import org.aion.generic.IGenericAionChain;
 import com.google.common.base.Stopwatch;
 import org.aion.log.AionLoggerFactory;
 import org.aion.log.LogEnum;
@@ -8,6 +9,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -21,8 +23,13 @@ public class RpcProcessor {
     private CompletionService<JSONObject> batchCallCompletionService;
     private final int SHUTDOWN_WAIT_SECONDS = 5;
 
-    public RpcProcessor(List<String> enabled) {
-        this.apiHolder = new RpcMethods(enabled);
+    public RpcProcessor(
+        final IGenericAionChain aionChain,
+        final List<String> enabledGroups,
+        final List<String> enabledMethods,
+        final List<String> disabledMethods) {
+
+        this.apiHolder = new RpcMethods(aionChain, enabledGroups, enabledMethods, disabledMethods);
         executor = Executors.newFixedThreadPool(Math.min(Runtime.getRuntime().availableProcessors() * 2, 4));
         batchCallCompletionService = new ExecutorCompletionService<>(executor);
     }
