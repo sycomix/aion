@@ -535,19 +535,23 @@ public abstract class ApiAion extends Api {
         return this.ac.getRepository().getNonce(_address);
     }
 
-    protected byte[] sendTransaction(ArgTxCall _params) {
+    protected ApiTxResponse sendTransaction(ArgTxCall _params) {
+
+        if (_params == null)
+            return(new ApiTxResponse(ApiTxResponse.TxRspType.INVALID_TX));
 
         Address from = _params.getFrom();
 
         if (from == null || from.isEmptyAddress()) {
             LOG.error("<send-transaction msg=invalid-from-address>");
-            return null;
+//            return null;
+            return(new ApiTxResponse(ApiTxResponse.TxRspType.INVALID_FROM));
         }
 
         ECKey key = this.getAccountKey(from.toString());
         if (key == null) {
             LOG.error("<send-transaction msg=account-not-found>");
-            return null;
+            return(new ApiTxResponse(ApiTxResponse.TxRspType.INVALID_ACCOUNT));
         }
 
         try {
@@ -572,10 +576,12 @@ public abstract class ApiAion extends Api {
 
                 pendingState.addPendingTransaction(tx);
 
-                return tx.getHash();
+//                return tx.getHash();
+                return null;
+
             }
         } catch (Exception ex) {
-            return null;
+            return(new ApiTxResponse(ApiTxResponse.TxRspType.EXCEPTION, ex));
         }
     }
 

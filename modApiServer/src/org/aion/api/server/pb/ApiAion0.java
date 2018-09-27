@@ -47,6 +47,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.aion.api.server.ApiAion;
+import org.aion.api.server.ApiTxResponse;
 import org.aion.api.server.ApiUtil;
 import org.aion.api.server.IApiAion;
 import org.aion.api.server.pb.Message.Retcode;
@@ -724,7 +725,7 @@ public class ApiAion0 extends ApiAion implements IApiAion {
 
                 byte[] data = parseMsgReq(request, msgHash);
                 Message.req_sendTransaction req;
-                byte[] result;
+                ApiTxResponse result;
                 try {
                     req = Message.req_sendTransaction.parseFrom(data);
 
@@ -753,20 +754,20 @@ public class ApiAion0 extends ApiAion implements IApiAion {
 
                 getMsgIdMapping()
                     .put(
-                        ByteArrayWrapper.wrap(result),
+                        ByteArrayWrapper.wrap(result.getTxHash()),
                         new AbstractMap.SimpleEntry<>(
                             ByteArrayWrapper.wrap(msgHash),
                             ByteArrayWrapper.wrap(socketId)));
                 if (LOG.isDebugEnabled()) {
                     LOG.debug(
                         "ApiAion0.process.sendTransaction - msgIdMapping.put: [{}]",
-                        ByteArrayWrapper.wrap(result).toString());
+                        ByteArrayWrapper.wrap(result.getTxHash()).toString());
                 }
 
                 Message.rsp_sendTransaction rsp =
                     Message.rsp_sendTransaction
                         .newBuilder()
-                        .setTxHash(ByteString.copyFrom(result))
+                        .setTxHash(ByteString.copyFrom(result.getTxHash()))
                         .build();
 
                 byte[] retHeader =
