@@ -452,11 +452,12 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             for (AionTransaction tx : transactions) {
                 BigInteger txNonce = tx.getNonceBI();
                 BigInteger bestPSNonce = bestPendingStateNonce(tx.getFrom());
+                Address txFrom = tx.getFrom();
 
                 int cmp = txNonce.compareTo(bestPSNonce);
 
                 if (cmp > 0) {
-                    if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {
+                    if (!isInTxCache(txFrom, txNonce)) {
                         newLargeNonceTx.add(tx);
                         addToTxCache(tx);
 
@@ -467,13 +468,13 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                         if (LOGGER_TX.isTraceEnabled()) {
                             LOGGER_TX.trace(
                                 "addPendingTransactions addToCache due to largeNonce: from = {}, nonce = {}",
-                                tx.getFrom(), txNonce);
+                                    txFrom, txNonce);
                         }
                     }
                 } else if (cmp == 0) {
                     if (txPool.size() > MAX_VALIDATED_PENDING_TXS) {
 
-                        if (!isInTxCache(tx.getFrom(), tx.getNonceBI())) {
+                        if (!isInTxCache(txFrom, txNonce)) {
                             newLargeNonceTx.add(tx);
                             addToTxCache(tx);
 
@@ -484,7 +485,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                             if (LOGGER_TX.isTraceEnabled()) {
                                 LOGGER_TX.trace(
                                     "addPendingTransactions addToCache due to poolMax: from = {}, nonce = {}",
-                                    tx.getFrom(), txNonce);
+                                        txFrom, txNonce);
                             }
                         }
 
@@ -492,7 +493,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                     }
 
                     // TODO: need to implement better cache return Strategy
-                    Map<BigInteger, AionTransaction> cache = pendingTxCache.geCacheTx(tx.getFrom());
+                    Map<BigInteger, AionTransaction> cache = pendingTxCache.geCacheTx(txFrom);
 
                     int limit = 0;
                     Set<Address> addr = pendingTxCache.getCacheTxAccount();
@@ -506,7 +507,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
 
                     if (LOGGER_TX.isTraceEnabled()) {
                         LOGGER_TX.trace("addPendingTransactions from cache: from {}, size {}",
-                            tx.getFrom(), cache.size());
+                                txFrom, cache.size());
                     }
 
                     do {
@@ -521,7 +522,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                         }
 
                         if (LOGGER_TX.isTraceEnabled()) {
-                            LOGGER_TX.trace("cache: from {}, nonce {}", tx.getFrom(),
+                            LOGGER_TX.trace("cache: from {}, nonce {}", txFrom,
                                 txNonce.toString());
                         }
 
@@ -531,7 +532,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                         (limit-- > 0) &&
                         (txBuffer == null ? txPool.size() : txPool.size() + txBuffer.size())
                             < MAX_VALIDATED_PENDING_TXS);
-                } else if (bestRepoNonce(tx.getFrom()).compareTo(txNonce) < 1) {
+                } else if (bestRepoNonce(txFrom).compareTo(txNonce) < 1) {
                     // repay Tx
                     if (addPendingTransactionImpl(tx, txNonce)) {
                         newPending.add(tx);

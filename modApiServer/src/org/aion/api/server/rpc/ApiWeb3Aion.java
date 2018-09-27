@@ -43,6 +43,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableFutureTask;
 import org.aion.api.server.ApiAion;
+import org.aion.api.server.ApiTxResponse;
 import org.aion.api.server.types.*;
 import org.aion.base.db.IRepository;
 import org.aion.base.type.Address;
@@ -646,18 +647,27 @@ public class ApiWeb3Aion extends ApiAion {
         }
 
         ArgTxCall txParams = ArgTxCall.fromJSON(_tx, getNrgOracle(), getDefaultNrgLimit());
-        if (txParams == null)
-            return new RpcMsg(
-                    null, RpcError.INVALID_PARAMS, "Please check your transaction object.");
 
-        // check for unlocked account
-        Address address = txParams.getFrom();
-        ECKey key = getAccountKey(address.toString());
+        ApiTxResponse response = sendTransaction(txParams);
 
-        if (key == null) return new RpcMsg(null, RpcError.NOT_ALLOWED, "Account not unlocked.");
-
-        byte[] response = sendTransaction(txParams);
-        return new RpcMsg(TypeConverter.toJsonHex(response));
+        switch(response.getType()) {
+            case INVALID_TX:
+                return new RpcMsg(
+                        null, RpcError.INVALID_PARAMS, ApiTxResponse.TxRspType.INVALID_TX.getMessage());
+            case INVALID_FROM:
+                return new RpcMsg(
+                        null, RpcError.INVALID_PARAMS, ApiTxResponse.TxRspType.INVALID_FROM.getMessage());
+            case INVALID_ACCOUNT:
+                return new RpcMsg(
+                        null, RpcError.NOT_ALLOWED, ApiTxResponse.TxRspType.INVALID_ACCOUNT.getMessage());
+            case EXCEPTION:
+                return new RpcMsg(
+                        null, RpcError.EXECUTION_ERROR, response.getExceptionMsg());
+            default:
+               //TODO AAYUSH REPLACE THIS
+                return new RpcMsg(
+                        null, RpcError.INVALID_PARAMS, "Please check your transaction object.");
+        }
     }
 
     public RpcMsg eth_sendRawTransaction(Object _params) {
