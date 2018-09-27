@@ -203,6 +203,33 @@ public final class SyncMgr {
         syncGs = new Thread(new TaskGetStatus(start, p2pMgr, log), "sync-gs");
         syncGs.start();
 
+        // extra sync processes
+        int pNum = Runtime.getRuntime().availableProcessors() - 1;
+        for (int i = 0; i < pNum; i++) {
+            Thread t = new Thread(new TaskGetBodies(this.p2pMgr,
+                this.start,
+                this.downloadedHeaders,
+                this.headersWithBodiesRequested,
+                this.peerStates,
+                log), "sync-gb-" + i);
+            t.setPriority(Thread.NORM_PRIORITY);
+            t.start();
+
+            t = new Thread(new TaskImportBlocks(this.chain,
+                this.start,
+                stats,
+                this.downloadedBlocks,
+                this.importedBlockHashes,
+                this.peerStates,
+                log), "sync-ib-" + i);
+            t.setPriority(Thread.NORM_PRIORITY);
+            t.start();
+
+            t = new Thread(new TaskGetStatus(this.start, this.p2pMgr, log), "sync-gs-" + i);
+            t.setPriority(Thread.NORM_PRIORITY);
+            t.start();
+        }
+
         if (_showStatus) {
             syncSs =
                     new Thread(
