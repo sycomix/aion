@@ -749,31 +749,48 @@ public class ApiAion0 extends ApiAion implements IApiAion {
 
                 if (result == null) {
                     return ApiUtil.toReturnHeader(
-                        getApiVersion(), Retcode.r_fail_sendTx_null_rep_VALUE, msgHash);
+                            getApiVersion(), Retcode.r_fail_sendTx_null_rep_VALUE, msgHash);
                 }
 
-                getMsgIdMapping()
-                    .put(
-                        ByteArrayWrapper.wrap(result.getTxHash()),
-                        new AbstractMap.SimpleEntry<>(
-                            ByteArrayWrapper.wrap(msgHash),
-                            ByteArrayWrapper.wrap(socketId)));
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                        "ApiAion0.process.sendTransaction - msgIdMapping.put: [{}]",
-                        ByteArrayWrapper.wrap(result.getTxHash()).toString());
+                switch(result.getType()) {
+                    case INVALID_TX:
+                        return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_function_arguments_VALUE,
+                                msgHash, ApiTxResponse.TxRspType.INVALID_TX.getMessage().getBytes());
+                    case INVALID_FROM:
+                        return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_invalid_addr_VALUE,
+                                msgHash, ApiTxResponse.TxRspType.INVALID_FROM.getMessage().getBytes());
+                    case INVALID_ACCOUNT:
+                        return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_invalid_addr_VALUE,
+                                msgHash, ApiTxResponse.TxRspType.INVALID_ACCOUNT.getMessage().getBytes());
+                    case EXCEPTION:
+                        return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_function_exception_VALUE,
+                                msgHash, result.getExceptionMsg().getBytes());
+                    case SUCCESS:
+                        getMsgIdMapping()
+                                .put(
+                                        ByteArrayWrapper.wrap(result.getTxHash()),
+                                        new AbstractMap.SimpleEntry<>(
+                                                ByteArrayWrapper.wrap(msgHash),
+                                                ByteArrayWrapper.wrap(socketId)));
+                        if (LOG.isDebugEnabled()) {
+                            LOG.debug(
+                                    "ApiAion0.process.sendTransaction - msgIdMapping.put: [{}]",
+                                    ByteArrayWrapper.wrap(result.getTxHash()).toString());
+                        }
+
+                        Message.rsp_sendTransaction rsp =
+                                Message.rsp_sendTransaction
+                                        .newBuilder()
+                                        .setTxHash(ByteString.copyFrom(result.getTxHash()))
+                                        .build();
+
+                        byte[] retHeader =
+                                ApiUtil.toReturnHeader(
+                                        getApiVersion(), Retcode.r_tx_Recved_VALUE, msgHash);
+                        return ApiUtil.combineRetMsg(retHeader, rsp.toByteArray());
+                    default:
+                        return null;
                 }
-
-                Message.rsp_sendTransaction rsp =
-                    Message.rsp_sendTransaction
-                        .newBuilder()
-                        .setTxHash(ByteString.copyFrom(result.getTxHash()))
-                        .build();
-
-                byte[] retHeader =
-                    ApiUtil.toReturnHeader(
-                        getApiVersion(), Retcode.r_tx_Recved_VALUE, msgHash);
-                return ApiUtil.combineRetMsg(retHeader, rsp.toByteArray());
             }
             case Message.Funcs.f_getCode_VALUE: {
                 if (service != Message.Servs.s_tx_VALUE) {

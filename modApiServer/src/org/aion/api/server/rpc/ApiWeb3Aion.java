@@ -663,6 +663,8 @@ public class ApiWeb3Aion extends ApiAion {
             case EXCEPTION:
                 return new RpcMsg(
                         null, RpcError.EXECUTION_ERROR, response.getExceptionMsg());
+            case SUCCESS:
+                return new RpcMsg(TypeConverter.toJsonHex(response.getTxHash()));
             default:
                //TODO AAYUSH REPLACE THIS
                 return new RpcMsg(

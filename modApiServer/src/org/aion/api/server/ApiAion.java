@@ -576,11 +576,11 @@ public abstract class ApiAion extends Api {
 
                 pendingState.addPendingTransaction(tx);
 
-//                return tx.getHash();
-                return null;
+                return (new ApiTxResponse(ApiTxResponse.TxRspType.SUCCESS, tx.getHash()));
 
             }
         } catch (Exception ex) {
+            LOG.error("ApiAion.sendTransaction exception: [{}]", ex.getMessage());
             return(new ApiTxResponse(ApiTxResponse.TxRspType.EXCEPTION, ex));
         }
     }
