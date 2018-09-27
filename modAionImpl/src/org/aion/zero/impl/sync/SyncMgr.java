@@ -38,6 +38,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import java.util.stream.Collectors;
 import org.aion.base.util.ByteArrayWrapper;
 import org.aion.base.util.ByteUtil;
 import org.aion.base.util.Hex;
@@ -267,38 +269,45 @@ public final class SyncMgr {
         // filter imported block headers
         List<A0BlockHeader> filtered = new ArrayList<>();
         A0BlockHeader prev = null;
-        for (A0BlockHeader current : _headers) {
 
-            // ignore this batch if any invalidated header
-            if (!this.blockHeaderValidator.validate(current, log)) {
-                log.debug("<invalid-header num={} hash={}>", current.getNumber(),
-                    current.getHash());
+        List<A0BlockHeader> valid_headers = _headers.stream().parallel().filter(
+            current -> this.blockHeaderValidator.validate(current, log))
+            .collect(Collectors.toList());
 
-                // Print header to allow debugging
-                log.debug("Invalid header: {}", current.toString());
+        if (valid_headers.size() == _headers.size()) {
+            for (A0BlockHeader current : _headers) {
 
-                return;
+//            // ignore this batch if any invalidated header
+//            if (!this.blockHeaderValidator.validate(current, log)) {
+//                log.debug("<invalid-header num={} hash={}>", current.getNumber(),
+//                    current.getHash());
+//
+//                // Print header to allow debugging
+//                log.debug("Invalid header: {}", current.toString());
+//
+//                return;
+//            }
+
+                // break if not consisting
+                if (prev != null && (current.getNumber() != (prev.getNumber() + 1) || !Arrays
+                    .equals(current.getParentHash(), prev.getHash()))) {
+                    log.debug(
+                        "<inconsistent-block-headers from={}, num={}, prev+1={}, p_hash={}, prev={}>",
+                        _displayId,
+                        current.getNumber(),
+                        prev.getNumber() + 1,
+                        ByteUtil.toHexString(current.getParentHash()),
+                        ByteUtil.toHexString(prev.getHash()));
+                    return;
+                }
+
+                // add if not cached
+                if (!importedBlockHashes.containsKey(ByteArrayWrapper.wrap(current.getHash()))) {
+                    filtered.add(current);
+                }
+
+                prev = current;
             }
-
-            // break if not consisting
-            if (prev != null && (current.getNumber() != (prev.getNumber() + 1) || !Arrays
-                .equals(current.getParentHash(), prev.getHash()))) {
-                log.debug(
-                    "<inconsistent-block-headers from={}, num={}, prev+1={}, p_hash={}, prev={}>",
-                    _displayId,
-                    current.getNumber(),
-                    prev.getNumber() + 1,
-                    ByteUtil.toHexString(current.getParentHash()),
-                    ByteUtil.toHexString(prev.getHash()));
-                return;
-            }
-
-            // add if not cached
-            if (!importedBlockHashes.containsKey(ByteArrayWrapper.wrap(current.getHash()))) {
-                filtered.add(current);
-            }
-
-            prev = current;
         }
 
         // NOTE: the filtered headers is still continuous
