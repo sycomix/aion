@@ -66,6 +66,14 @@ public class PeerState {
     private long lastBestBlock = 0;
     private long lastHeaderRequest;
 
+    /**
+     * Creates a default peer state with mode = NORMAL and state = INITIAL.
+     */
+    public PeerState() {
+        this.mode = Mode.NORMAL;
+        this.state = State.INITIAL;
+    }
+
     /** Creates a new peer state. */
     public PeerState(Mode mode, long base) {
         this.mode = mode;
