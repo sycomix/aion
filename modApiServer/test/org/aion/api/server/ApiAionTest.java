@@ -386,12 +386,12 @@ public class ApiAionTest {
         txcall = new ArgTxCall(null, Address.ZERO_ADDRESS(),
                 msg, repo.getNonce(addr), BigInteger.ONE, 100000, 100000);
 
-        assertNull(api.sendTransaction(txcall));
+        assertEquals(api.sendTransaction(txcall).getType(), ApiTxResponse.TxRspType.INVALID_FROM);
 
         txcall = new ArgTxCall(Address.EMPTY_ADDRESS(), Address.ZERO_ADDRESS(),
                 msg, repo.getNonce(addr), BigInteger.ONE, 100000, 100000);
 
-        assertNull(api.sendTransaction(txcall));
+        assertEquals(api.sendTransaction(txcall).getType(), ApiTxResponse.TxRspType.INVALID_FROM);
         tearDown();
     }
 
