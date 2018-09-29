@@ -237,7 +237,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
 
         this.minerCoinbase = this.config.getMinerCoinbase();
 
-        if (minerCoinbase.equals(Address.EMPTY_ADDRESS())) {
+        if (minerCoinbase.isEmptyAddress()) {
             LOG.warn("No miner Coinbase!");
         }
 
@@ -419,7 +419,12 @@ public class AionBlockchainImpl implements IAionBlockchain {
         }
 
         for (int i = 0; i < transactions.size(); i++) {
-            txsState.update(RLP.encodeInt(i), transactions.get(i).getEncoded());
+            byte[] txEncoding = transactions.get(i).getEncoded();
+            if (txEncoding != null) {
+                txsState.update(RLP.encodeInt(i), txEncoding);
+            } else {
+                return HashUtil.EMPTY_TRIE_HASH;
+            }
         }
         return txsState.getRootHash();
     }
@@ -469,13 +474,16 @@ public class AionBlockchainImpl implements IAionBlockchain {
         }
 
         if (summary != null && isMoreThan(this.totalDifficulty, savedState.savedTD)) {
-            if (LOG.isInfoEnabled())
+
+            if (LOG.isInfoEnabled()) {
                 LOG.info(
-                        "branching: from = {}/{}, to = {}/{}",
-                        savedState.savedBest.getNumber(),
-                        toHexString(savedState.savedBest.getHash()),
-                        block.getNumber(),
-                        toHexString(block.getHash()));
+                    "branching: from = {}/{}, to = {}/{}",
+                    savedState.savedBest.getNumber(),
+                    toHexString(savedState.savedBest.getHash()),
+                    block.getNumber(),
+                    toHexString(block.getHash()));
+            }
+
             // main branch become this branch
             // cause we proved that total difficulty
             // is greater
@@ -952,10 +960,10 @@ public class AionBlockchainImpl implements IAionBlockchain {
             return false;
         }
 
-        boolean isValid = true;
-
         if (!block.isGenesis()) {
-            isValid = isValid(block.getHeader());
+            if (!isValid(block.getHeader())) {
+                return false;
+            }
 
             // Sanity checks
             String trieHash = toHexString(block.getTxTrieRoot());
@@ -1010,7 +1018,7 @@ public class AionBlockchainImpl implements IAionBlockchain {
             }
         }
 
-        return isValid;
+        return true;
     }
 
     public static Set<ByteArrayWrapper> getAncestors(
