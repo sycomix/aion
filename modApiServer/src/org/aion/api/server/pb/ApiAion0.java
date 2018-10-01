@@ -784,7 +784,6 @@ public class ApiAion0 extends ApiAion implements IApiAion {
                                         .newBuilder()
                                         .setTxHash(ByteString.copyFrom(result.getTxHash()))
                                         .build();
-
                         byte[] retHeader =
                                 ApiUtil.toReturnHeader(
                                         getApiVersion(), Retcode.r_tx_Recved_VALUE, msgHash);

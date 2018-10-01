@@ -545,7 +545,6 @@ public abstract class ApiAion extends Api {
 
         if (from == null || from.isEmptyAddress()) {
             LOG.error("<send-transaction msg=invalid-from-address>");
-//            return null;
             return(new ApiTxResponse(SendTxResponse.INVALID_FROM));
         }
 
@@ -578,7 +577,6 @@ public abstract class ApiAion extends Api {
                 pendingState.addPendingTransaction(tx);
 
                 return (new ApiTxResponse(SendTxResponse.SUCCESS, tx.getHash()));
-
             }
         } catch (Exception ex) {
             LOG.error("ApiAion.sendTransaction exception: [{}]", ex.getMessage());

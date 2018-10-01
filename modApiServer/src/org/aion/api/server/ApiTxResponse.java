@@ -36,16 +36,16 @@ public class ApiTxResponse {
     // Could just store the exception message string
     private Exception ex;
 
-    public ApiTxResponse(SendTxResponse rsp) {
+    ApiTxResponse(SendTxResponse rsp) {
         this.rsp = rsp;
     }
 
-    public ApiTxResponse(SendTxResponse rsp, byte[] txHash) {
+    ApiTxResponse(SendTxResponse rsp, byte[] txHash) {
         this.rsp = rsp;
         this.txHash = txHash;
     }
 
-    public ApiTxResponse(SendTxResponse rsp, Exception ex) {
+    ApiTxResponse(SendTxResponse rsp, Exception ex) {
         this.rsp = rsp;
         this.ex = ex;
     }
@@ -55,7 +55,7 @@ public class ApiTxResponse {
     }
 
     public String getMessage() {
-        switch(rsp) {
+        switch (rsp) {
             case INVALID_TX:
                 return ("Invalid transaction object");
             case INVALID_FROM:
@@ -68,7 +68,7 @@ public class ApiTxResponse {
                 return ("Transaction sent successfully");
             default:
                 //TODO AAYUSH REPLACE THIS
-                return("");
+                return ("");
         }
     }
 
@@ -76,4 +76,5 @@ public class ApiTxResponse {
     public byte[] getTxHash() {
         return txHash;
     }
+
 }
