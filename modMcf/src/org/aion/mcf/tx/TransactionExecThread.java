@@ -24,10 +24,8 @@
  ******************************************************************************/
 package org.aion.mcf.tx;
 
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -59,22 +57,6 @@ public abstract class TransactionExecThread<PS extends IPendingStateInternal, TX
 
     protected TransactionExecThread(PS pendingState) {
         this.pendingState = pendingState;
-    }
-
-    public Future<List<TX>> submitTransaction(TX tx) {
-        Future<List<TX>> txListFuture = txExec.submit(() -> {
-            LOG.debug("TransactionExecThread.broadcastTransaction: " + tx.toString());
-            return this.pendingState.addPendingTransaction(tx);
-        });
-
-        return txListFuture;
-    }
-
-    public Future<List<TX>> submitTransaction(List<TX> tx) {
-        Future<List<TX>> txListFuture = txExec.submit(() -> {
-            return this.pendingState.addPendingTransactions(tx);
-        });
-        return txListFuture;
     }
 
     public void shutdown() {
