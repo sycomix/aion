@@ -17,6 +17,7 @@ module aion.zero.impl {
     requires jdk.management;
     requires java.xml;
     requires slf4j.api;
+    requires commons.collections4;
 
     exports org.aion.equihash;
     exports org.aion.zero.impl.blockchain;
