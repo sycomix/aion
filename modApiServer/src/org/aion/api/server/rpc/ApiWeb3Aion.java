@@ -652,17 +652,15 @@ public class ApiWeb3Aion extends ApiAion {
 
         switch(response.getType()) {
             case INVALID_TX:
-                return new RpcMsg(
-                        null, RpcError.INVALID_PARAMS, ApiTxResponse.TxRspType.INVALID_TX.getMessage());
             case INVALID_FROM:
                 return new RpcMsg(
-                        null, RpcError.INVALID_PARAMS, ApiTxResponse.TxRspType.INVALID_FROM.getMessage());
+                        null, RpcError.INVALID_PARAMS, response.getMessage());
             case INVALID_ACCOUNT:
                 return new RpcMsg(
-                        null, RpcError.NOT_ALLOWED, ApiTxResponse.TxRspType.INVALID_ACCOUNT.getMessage());
+                        null, RpcError.NOT_ALLOWED, response.getMessage());
             case EXCEPTION:
                 return new RpcMsg(
-                        null, RpcError.EXECUTION_ERROR, response.getExceptionMsg());
+                        null, RpcError.EXECUTION_ERROR, response.getMessage());
             case SUCCESS:
                 return new RpcMsg(TypeConverter.toJsonHex(response.getTxHash()));
             default:

@@ -25,63 +25,55 @@
 
 package org.aion.api.server;
 
+import org.aion.zero.impl.blockchain.SendTxResponse;
+
 public class ApiTxResponse {
 
-    public enum TxRspType {
+    private final SendTxResponse rsp;
 
-        SUCCESS(0, "Transaction sent successfully"),
-        INVALID_TX(1, "Invalid transaction object"),
-        INVALID_FROM(2, "Invalid from address provided"),
-        INVALID_ACCOUNT(3, "Account not found, or not unlocked"),
-        EXCEPTION(4, "");
-
-        private final int code;
-        private final String message;
-
-        TxRspType (int code, String message) {
-            this.code = code;
-            this.message = message;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public int getCode() {
-            return code;
-        }
-    }
-
-    private final TxRspType type;
     private byte[] txHash;
 
     // Could just store the exception message string
     private Exception ex;
 
-    public ApiTxResponse(TxRspType type) {
-        this.type = type;
+    public ApiTxResponse(SendTxResponse rsp) {
+        this.rsp = rsp;
     }
 
-    public ApiTxResponse(TxRspType type, byte[] txHash) {
-        this.type = type;
+    public ApiTxResponse(SendTxResponse rsp, byte[] txHash) {
+        this.rsp = rsp;
         this.txHash = txHash;
     }
 
-    public ApiTxResponse(TxRspType type, Exception ex) {
-        this.type = type;
+    public ApiTxResponse(SendTxResponse rsp, Exception ex) {
+        this.rsp = rsp;
         this.ex = ex;
     }
 
-    public TxRspType getType() {
-        return type;
+    public SendTxResponse getType() {
+        return rsp;
+    }
+
+    public String getMessage() {
+        switch(rsp) {
+            case INVALID_TX:
+                return ("Invalid transaction object");
+            case INVALID_FROM:
+                return ("Invalid from address provided");
+            case INVALID_ACCOUNT:
+                return ("Account not found, or not unlocked");
+            case EXCEPTION:
+                return (ex.getMessage());
+            case SUCCESS:
+                return ("Transaction sent successfully");
+            default:
+                //TODO AAYUSH REPLACE THIS
+                return("");
+        }
     }
 
     //Should only be called if tx was successfully sent
     public byte[] getTxHash() {
         return txHash;
-    }
-
-    public String getExceptionMsg() {
-        return ex.getMessage();
     }
 }

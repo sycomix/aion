@@ -755,16 +755,17 @@ public class ApiAion0 extends ApiAion implements IApiAion {
                 switch(result.getType()) {
                     case INVALID_TX:
                         return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_function_arguments_VALUE,
-                                msgHash, ApiTxResponse.TxRspType.INVALID_TX.getMessage().getBytes());
+                                msgHash,result.getMessage().getBytes());
+
                     case INVALID_FROM:
-                        return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_invalid_addr_VALUE,
-                                msgHash, ApiTxResponse.TxRspType.INVALID_FROM.getMessage().getBytes());
                     case INVALID_ACCOUNT:
                         return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_invalid_addr_VALUE,
-                                msgHash, ApiTxResponse.TxRspType.INVALID_ACCOUNT.getMessage().getBytes());
+                                msgHash, result.getMessage().getBytes());
+
                     case EXCEPTION:
                         return ApiUtil.toReturnHeader(getApiVersion(), Retcode.r_fail_function_exception_VALUE,
-                                msgHash, result.getExceptionMsg().getBytes());
+                                msgHash, result.getMessage().getBytes());
+
                     case SUCCESS:
                         getMsgIdMapping()
                                 .put(
