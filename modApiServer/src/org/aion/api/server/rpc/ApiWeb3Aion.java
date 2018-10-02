@@ -226,24 +226,24 @@ public class ApiWeb3Aion extends ApiAion {
                 .maximumSize(1)
                 .refreshAfterWrite(OPS_RECENT_ENTITY_CACHE_TIME_SECONDS, TimeUnit.SECONDS)
                 .build(
-                    new CacheLoader<>() {
-                        public ChainHeadView load(Integer key) { // no checked exception
-                            return new ChainHeadView(OPS_RECENT_ENTITY_COUNT).update();
-                        }
+                        new CacheLoader<>() {
+                            public ChainHeadView load(Integer key) { // no checked exception
+                                return new ChainHeadView(OPS_RECENT_ENTITY_COUNT).update();
+                            }
 
-                        public ListenableFuture<ChainHeadView> reload(final Integer key,
-                            ChainHeadView prev) {
-                            try {
-                                ListenableFutureTask<ChainHeadView> task = ListenableFutureTask
-                                    .create(() -> new ChainHeadView(prev).update());
-                                cacheUpdateExecutor.execute(task);
-                                return task;
-                            } catch (Throwable e) {
-                                LOG.debug("<cache-updater - could not queue up task: ", e);
-                                throw (e);
-                            } // exception is swallowed by refresh and load. so just log it for our logs
-                        }
-                    });
+                            public ListenableFuture<ChainHeadView> reload(final Integer key,
+                                                                          ChainHeadView prev) {
+                                try {
+                                    ListenableFutureTask<ChainHeadView> task = ListenableFutureTask
+                                            .create(() -> new ChainHeadView(prev).update());
+                                    cacheUpdateExecutor.execute(task);
+                                    return task;
+                                } catch (Throwable e) {
+                                    LOG.debug("<cache-updater - could not queue up task: ", e);
+                                    throw (e);
+                                } // exception is swallowed by refresh and load. so just log it for our logs
+                            }
+                        });
 
         cacheUpdateExecutor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(1), new CacheUpdateThreadFactory());
@@ -270,7 +270,7 @@ public class ApiWeb3Aion extends ApiAion {
                             public ListenableFuture<MinerStatsView> reload(final String key, MinerStatsView prev) {
                                 try {
                                     ListenableFutureTask<MinerStatsView> task = ListenableFutureTask.create(
-                                        () -> new MinerStatsView(prev).update());
+                                            () -> new MinerStatsView(prev).update());
                                     MinerStatsExecutor.execute(task);
                                     return task;
                                 } catch (Throwable e) {
@@ -651,22 +651,44 @@ public class ApiWeb3Aion extends ApiAion {
         ApiTxResponse response = sendTransaction(txParams);
 
         switch(response.getType()) {
+            case SUCCESS:
+                return new RpcMsg(TypeConverter.toJsonHex(response.getTxHash()));
             case INVALID_TX:
+            case INVALID_TX_NRG_PRICE:
             case INVALID_FROM:
                 return new RpcMsg(
                         null, RpcError.INVALID_PARAMS, response.getMessage());
             case INVALID_ACCOUNT:
                 return new RpcMsg(
                         null, RpcError.NOT_ALLOWED, response.getMessage());
+
+
+                //TODO AAYUSH: should i just return the txhash in these cases?
+            case ALREADY_CACHED:
+                return new RpcMsg(
+                        null, RpcError.EXECUTION_ERROR, response.getMessage());
+            case CACHED_NONCE:
+                return new RpcMsg(
+                        null, RpcError.NOT_ALLOWED, response.getMessage());
+            case CACHED_POOLMAX:
+                return new RpcMsg(
+                        null, RpcError.NOT_ALLOWED, response.getMessage());
+            case REPAYTX_POOL_EXCEPTION:
+                return new RpcMsg(
+                        null, RpcError.NOT_ALLOWED, response.getMessage());
+            case REPAYTX_LOWPRICE:
+                return new RpcMsg(
+                        null, RpcError.NOT_ALLOWED, response.getMessage());
+
+            case DROPPED:
+                return new RpcMsg(
+                        null, RpcError.EXECUTION_ERROR, response.getMessage());
             case EXCEPTION:
                 return new RpcMsg(
                         null, RpcError.EXECUTION_ERROR, response.getMessage());
-            case SUCCESS:
-                return new RpcMsg(TypeConverter.toJsonHex(response.getTxHash()));
             default:
-               //TODO AAYUSH REPLACE THIS
                 return new RpcMsg(
-                        null, RpcError.INVALID_PARAMS, "Please check your transaction object.");
+                        null, RpcError.EXECUTION_ERROR, response.getMessage());
         }
     }
 
@@ -2233,7 +2255,7 @@ public class ApiWeb3Aion extends ApiAion {
         // ok to getUnchecked() since the load() implementation does not throw checked exceptions
         AionBlock b;
         try {
-             b = blockCache.getUnchecked(new ByteArrayWrapper(blockHash));
+            b = blockCache.getUnchecked(new ByteArrayWrapper(blockHash));
         } catch (CacheLoader.InvalidCacheLoadException e) {
             // Catch errors if send an incorrect tx hash
             return new RpcMsg(null, RpcError.INVALID_REQUEST, "Invalid Request");
