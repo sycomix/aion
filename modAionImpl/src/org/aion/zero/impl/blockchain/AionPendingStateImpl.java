@@ -542,6 +542,7 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
             } else if (bestRepoNonce(txFrom).compareTo(txNonce) < 1) {
                 // repay Tx
                 AddTxResponse implResponse = addPendingTransactionImpl(tx, txNonce);
+                // TODO AAYUSH: should we respond with something like TX_REPAYED?
                 txResponses.add(implResponse);
                 if (implResponse.equals(AddTxResponse.SUCCESS)) {
                     newPending.add(tx);
@@ -550,6 +551,8 @@ public class AionPendingStateImpl implements IPendingStateInternal<AionBlock, Ai
                         backupPendingPoolAdd.put(tx.getHash(), tx.getEncoded());
                     }
                 }
+            } else {
+                //add something to txresponse!
             }
         }
 

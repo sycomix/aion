@@ -12,5 +12,6 @@ public enum AddTxResponse {
     REPAYTX_POOL_EXCEPTION(),
     REPAYTX_LOWPRICE(),
     DROPPED(),
-    EXCEPTION()
+    EXCEPTION(),
+    UNKNOWN()
 }

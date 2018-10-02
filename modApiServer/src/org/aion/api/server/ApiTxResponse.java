@@ -56,19 +56,33 @@ public class ApiTxResponse {
 
     public String getMessage() {
         switch (rsp) {
+            case SUCCESS:
+                return ("Transaction sent successfully");
             case INVALID_TX:
                 return ("Invalid transaction object");
+            case INVALID_TX_NRG_PRICE:
+                return ("Invalid transaction energy price");
             case INVALID_FROM:
                 return ("Invalid from address provided");
             case INVALID_ACCOUNT:
                 return ("Account not found, or not unlocked");
+            case ALREADY_CACHED:
+                return ("Transaction is already in the cache");
+            case CACHED_NONCE:
+                return ("Transaction cached due to large nonce");
+            case CACHED_POOLMAX:
+                return ("Transaction cached because the pool is full");
+            case REPAYTX_POOL_EXCEPTION:
+                return ("Transaction wasn't found in the pool");
+            case REPAYTX_LOWPRICE:
+                return ("Repaid transaction price was invalid");
+            case DROPPED:
+                return ("Transaction dropped");
             case EXCEPTION:
                 return (ex.getMessage());
-            case SUCCESS:
-                return ("Transaction sent successfully");
+            case UNKNOWN:
             default:
-                //TODO AAYUSH REPLACE THIS
-                return ("");
+                return ("Transaction status unknown");
         }
     }
 
